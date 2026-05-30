@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ aw.id_name }} — ReviewV2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5; height: 100vh; display: flex; flex-direction: column; }
+
+/* ── Header ── */
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+header a { color: #60a5fa; text-decoration: none; font-size: .85rem; }
+header a:hover { text-decoration: underline; }
+.btn-auto {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid #ca8a04;
+  background: #1c1400; color: #fbbf24; font-size: .8rem; cursor: pointer;
+  white-space: nowrap;
+}
+.btn-auto:hover { background: #292400; }
+.btn-nav {
+  padding: 5px 10px; border-radius: 6px; border: 1px solid #333;
+  background: #222; color: #888; font-size: .85rem; text-decoration: none !important;
+}
+.btn-nav:hover { background: #333; color: #fff; }
+.btn-nav.disabled { opacity: .3; pointer-events: none; }
+.artwork-meta { flex: 1; }
+.artwork-meta h1 { font-size: 1rem; font-weight: 700; color: #fff; }
+.artwork-meta p  { font-size: .8rem; color: #888; margin-top: 2px; }
+
+/* ── Main layout: LEFT | RIGHT ── */
+.layout {
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* ── LEFT: disk files ── */
+.panel-left {
+  width: 34%; border-right: 2px solid #222;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-left .panel-header {
+  padding: 10px 14px; background: #161616; border-bottom: 1px solid #252525;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.panel-left .panel-header h2 { font-size: .85rem; color: #aaa; font-weight: 600; }
+.dir-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.dir-tab {
+  padding: 3px 10px; border-radius: 10px; font-size: .72rem; font-weight: 600;
+  cursor: pointer; border: 1px solid #333; background: #222; color: #777;
+  transition: all .15s;
+}
+.dir-tab.active   { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+.dir-tab[data-dir="FM"]   { border-color: #16a34a; color: #4ade80; }
+.dir-tab[data-dir="FM"].active   { background: #16a34a; color: #fff; }
+.dir-tab[data-dir="A5"]  { border-color: #b45309; color: #fbbf24; }
+.dir-tab[data-dir="A5"].active   { background: #b45309; color: #fff; }
+.dir-tab[data-dir="NP"]  { border-color: #7e22ce; color: #c084fc; }
+.dir-tab[data-dir="NP"].active   { background: #7e22ce; color: #fff; }
+.dir-tab[data-dir="300"] { border-color: #0e7490; color: #67e8f9; }
+.dir-tab[data-dir="300"].active  { background: #0e7490; color: #fff; }
+.dir-tab[data-dir="TIFF"]{ border-color: #9f1239; color: #fda4af; }
+.dir-tab[data-dir="TIFF"].active { background: #9f1239; color: #fff; }
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px; padding: 12px; overflow-y: auto; flex: 1;
+}
+.photo-card {
+  background: #1a1a1a; border-radius: 8px; overflow: hidden;
+  cursor: pointer; border: 2px solid transparent; transition: border .15s;
+  position: relative;
+}
+.photo-card:hover { border-color: #3b82f6; }
+.photo-card.selected { border-color: #f59e0b !important; }
+.photo-card img {
+  width: 100%; aspect-ratio: 1; object-fit: cover;
+  display: block; background: #111;
+}
+.photo-card .meta {
+  padding: 5px 8px;
+}
+.photo-card .role {
+  font-size: .65rem; font-weight: 700; letter-spacing: .05em;
+  padding: 2px 6px; border-radius: 4px; display: inline-block;
+}
+.role-MAIN     { background: #14532d; color: #4ade80; }
+.role-MAINA5   { background: #064e3b; color: #6ee7b7; }
+.role-RECTO    { background: #1e3a5f; color: #93c5fd; }
+.role-VERSO    { background: #312e81; color: #a5b4fc; }
+.role-BACK     { background: #422006; color: #fed7aa; }
+.role-INSITU   { background: #1c1917; color: #a8a29e; }
+.role-DETAIL   { background: #1a1a2e; color: #818cf8; }
+.role-SIGNATURE{ background: #27272a; color: #a1a1aa; }
+.role-FRAME    { background: #3b0764; color: #d8b4fe; }
+.role-PYRAMID  { background: #0c1a2e; color: #7dd3fc; }
+.role-OTHER    { background: #1c1917; color: #78716c; }
+.photo-card .fname {
+  font-size: .6rem; color: #555; margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dir-badge {
+  position: absolute; top: 6px; left: 6px;
+  font-size: .6rem; font-weight: 700; padding: 1px 6px;
+  border-radius: 3px; background: rgba(0,0,0,.75);
+}
+.edit-btn {
+  position: absolute; top: 6px; right: 6px;
+  font-size: .75rem; padding: 2px 6px; border-radius: 4px;
+  background: rgba(0,0,0,.75); color: #aaa; text-decoration: none;
+  opacity: 0; transition: opacity .15s;
+}
+.dl-btn {
+  position: absolute; bottom: 6px; right: 6px;
+  font-size: .7rem; padding: 2px 6px; border-radius: 4px;
+  background: rgba(0,0,0,.75); color: #60a5fa; text-decoration: none;
+  opacity: 0; transition: opacity .15s;
+}
+.photo-card:hover .edit-btn,
+.photo-card:hover .dl-btn { opacity: 1; }
+.empty-msg { color: #444; padding: 32px; text-align: center; font-size: .85rem; grid-column: 1/-1; }
+.best-badge { position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+  font-size: .5rem; font-weight: 800; padding: 1px 6px; border-radius: 8px;
+  background: #14532d; color: #4ade80; border: 1px solid #22c55e55;
+  white-space: nowrap; pointer-events: none; z-index: 2; }
+.px-badge { position: absolute; bottom: 24px; left: 6px;
+  font-size: .5rem; padding: 1px 4px; border-radius: 3px;
+  background: rgba(0,0,0,.8); color: #7dd3fc; pointer-events: none; }
+.size-badge { position: absolute; bottom: 24px; right: 6px;
+  font-size: .5rem; padding: 1px 4px; border-radius: 3px;
+  background: rgba(0,0,0,.8); color: #a3a3a3; pointer-events: none; }
+.size-badge.heavy { color: #4ade80; }
+.size-badge.light { color: #f87171; }
+.photo-card.is-best { box-shadow: 0 0 0 2px #22c55e55; }
+.nas-badge { position: absolute; top: 5px; right: 6px;
+  font-size: .48rem; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  background: #1e3a5f; color: #7dd3fc; border: 1px solid #3b82f655;
+  pointer-events: none; z-index: 2; }
+.btn-nas-copy {
+  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  font-size: .62rem; font-weight: 700; padding: 3px 10px; border-radius: 4px;
+  background: #1e3a5f; border: 1px solid #3b82f6; color: #60a5fa;
+  cursor: pointer; white-space: nowrap; z-index: 3; opacity: 0; transition: opacity .15s;
+}
+.photo-card:hover .btn-nas-copy { opacity: 1; }
+.btn-nas-copy:disabled { opacity: .4 !important; cursor: default; }
+
+/* ── Zoom preview ── */
+#zoomPreview {
+  display: none; position: fixed; bottom: 16px; left: 16px; z-index: 200;
+  background: #111; border: 1px solid #333; border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.8);
+  padding: 6px; max-width: 340px;
+}
+#zoomPreview img { display: block; max-width: 328px; max-height: 400px; object-fit: contain; border-radius: 4px; }
+#zoomPreview .zoom-info { font-size: .62rem; color: #555; margin-top: 5px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── MIDDLE: Odoo slots ── */
+.panel-mid {
+  width: 33%; border-right: 2px solid #222;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-mid .panel-header {
+  padding: 10px 14px; background: #161616; border-bottom: 1px solid #252525;
+  flex-shrink: 0;
+}
+.panel-mid .panel-header h2 { font-size: .85rem; color: #aaa; font-weight: 600; }
+
+/* ── RIGHT: FM status ── */
+.panel-right {
+  flex: 1; display: flex; flex-direction: column; overflow-y: auto;
+}
+.panel-right .panel-header {
+  padding: 10px 14px; background: #0f1a0f; border-bottom: 1px solid #1a3a1a;
+  flex-shrink: 0;
+}
+.panel-right .panel-header h2 { font-size: .85rem; color: #4ade80; font-weight: 600; }
+
+.slots { flex-shrink: 0; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+
+.slot {
+  background: #1a1a1a; border-radius: 6px; overflow: hidden;
+  border: 2px solid transparent; cursor: pointer; transition: border .15s;
+  display: flex; align-items: stretch; gap: 0;
+}
+.slot:hover { border-color: #3b82f6; }
+.slot.drop-target { border-color: #444; background: #161600; }
+.slot.drop-target-match { border-color: #f59e0b !important; background: #2a2000 !important; box-shadow: 0 0 0 2px #f59e0b55; }
+.slot-thumb {
+  width: 110px; min-height: 88px; flex-shrink: 0;
+  background: #111; display: flex; align-items: center; justify-content: center;
+}
+.slot-thumb img { width: 110px; height: 88px; object-fit: cover; display: block; cursor: zoom-in; }
+.slot-thumb .no-photo { font-size: 1rem; }
+.slot-info { padding: 4px 8px; flex: 1; min-width: 0; }
+.slot-label { font-size: .75rem; font-weight: 700; color: #ddd; }
+.slot-url {
+  font-size: .62rem; color: #555; margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
+.slot-url.has-url { color: #4ade80; }
+.slot-actions { display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.btn-clear {
+  padding: 3px 8px; border-radius: 5px; font-size: .7rem;
+  background: #3b0000; color: #f87171; border: 1px solid #7f1d1d;
+  cursor: pointer;
+}
+.btn-clear:hover { background: #7f1d1d; }
+
+/* ── FM Status panel ── */
+.fm-panel {
+  border-top: 1px solid #222; flex-shrink: 0;
+  max-height: 0; overflow: hidden; transition: max-height .3s ease, flex .3s ease;
+}
+.fm-panel.open { max-height: none; overflow: visible; }
+.fm-toggle {
+  width: 100%; padding: 7px 14px; background: #0f1a0f; border: none;
+  border-top: 1px solid #1a3a1a; color: #4ade80; font-size: .78rem;
+  cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.fm-toggle:hover { background: #132013; }
+.fm-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 14px; border-bottom: 1px solid #1a1a1a; font-size: .72rem;
+}
+.fm-row:hover { background: #111; }
+.fm-field { width: 100px; color: #888; flex-shrink: 0; font-weight: 600; }
+.fm-status { font-size: .9rem; flex-shrink: 0; width: 20px; text-align: center; }
+.fm-url { flex: 1; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fm-url.ok { color: #4ade80; }
+.fm-url.missing { color: #f87171; }
+.fm-url.empty { color: #333; font-style: italic; }
+.fm-thumb { width: 36px; height: 28px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: #111; }
+
+/* ── Bottom bar ── */
+.bottom-bar {
+  background: #111; border-top: 1px solid #1f1f1f;
+  padding: 8px 16px; font-size: .8rem; color: #555;
+  flex-shrink: 0; display: flex; align-items: center; gap: 16px;
+}
+.selected-info { color: #f59e0b; font-weight: 600; }
+.hint { color: #444; }
+
+/* ── Upload modal ── */
+#uploadModal {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.75); align-items: center; justify-content: center;
+}
+#uploadModal.show { display: flex; }
+.ubox {
+  background: #161616; border: 1px solid #2a2a2a; border-radius: 10px;
+  padding: 22px 26px; width: 400px; max-width: 95vw;
+}
+.ubox h3 { font-size: .9rem; font-weight: 700; color: #ddd; margin-bottom: 4px; }
+.ubox .u-target { font-size: .75rem; color: #d97706; margin-bottom: 16px; }
+#uDrop {
+  border: 2px dashed #2a2a2a; border-radius: 8px; padding: 28px 16px;
+  text-align: center; cursor: pointer; transition: all .15s; margin-bottom: 12px;
+}
+#uDrop:hover, #uDrop.over { border-color: #3b82f6; background: #030d1a; }
+#uDrop p  { font-size: .8rem; color: #555; margin-bottom: 4px; }
+#uDrop em { font-size: .68rem; color: #333; }
+#uPreview {
+  display: none; align-items: center; gap: 10px;
+  margin-bottom: 12px; padding: 8px; background: #111; border-radius: 6px;
+}
+#uPreview img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; }
+#uPreview .uname { font-size: .72rem; color: #aaa; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#uPreview .usize { font-size: .62rem; color: #555; flex-shrink: 0; }
+.u-note { font-size: .65rem; color: #444; margin-bottom: 14px; line-height: 1.5; }
+.u-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.btn-upload {
+  padding: 6px 14px; border-radius: 6px; font-size: .78rem; cursor: pointer;
+  background: #14532d; border: 1px solid #16a34a; color: #4ade80;
+}
+.btn-upload:hover { background: #166534; }
+.btn-upload:disabled { opacity: .5; cursor: not-allowed; }
+.btn-secondary {
+  padding: 6px 12px; border-radius: 6px; font-size: .78rem; cursor: pointer;
+  background: #1a1a1a; border: 1px solid #333; color: #777;
+}
+.btn-secondary:hover { color: #fff; }
+
+/* Upload icon on slot */
+.slot-upload-btn {
+  font-size: .7rem; padding: 2px 6px; border-radius: 4px;
+  background: #0c1e3a; border: 1px solid #1d4ed8; color: #60a5fa;
+  cursor: pointer; flex-shrink: 0; white-space: nowrap;
+}
+.slot-upload-btn:hover { background: #1e3a5f; }
+.slot-fm-btn {
+  font-size: .65rem; padding: 2px 5px; border-radius: 4px;
+  background: #0f2a0f; border: 1px solid #166534; color: #4ade80;
+  cursor: pointer; flex-shrink: 0; white-space: nowrap;
+}
+.slot-fm-btn:hover { background: #14532d; }
+.slot-fm-btn:disabled { opacity: .4; cursor: default; }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #1f2937; border: 1px solid #374151;
+  color: #fff; padding: 10px 16px; border-radius: 8px;
+  font-size: .85rem; opacity: 0; transition: opacity .3s;
+  pointer-events: none; z-index: 100;
+}
+#toast.show { opacity: 1; }
+#toast.ok   { border-color: #16a34a; background: #052e16; }
+#toast.err  { border-color: #dc2626; background: #3b0000; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← Retour</a>
+  <div class="artwork-meta">
+    <h1>{{ aw.id_name }}{% if aw.title %} — {{ aw.title }}{% endif %}</h1>
+    <p>{{ aw.artist or '' }}{% if aw.status %} · {{ aw.status }}{% endif %}{% if aw.category %} · {{ aw.category }}{% endif %}</p>
+  </div>
+  {% if aw.odoo_id %}
+  <button class="btn-auto" onclick="autoAssign()" title="Assigner automatiquement les photos selon les conventions de nommage">⚡ Auto-assign</button>
+  <button class="btn-auto" id="btnPushAll" onclick="pushAllToFM(this)" title="Pousser tous les champs Odoo → FileMaker" style="border-color:#16a34a;color:#4ade80">→ FM</button>
+  {% endif %}
+  <a class="btn-nav" id="btnPrev" href="#" title="Œuvre précédente (←)">◀</a>
+  <a class="btn-nav" id="btnNext" href="#" title="Œuvre suivante (→)">▶</a>
+</header>
+
+<div class="layout">
+
+  <!-- ── LEFT: Disk files ── -->
+  <div class="panel-left">
+    <div class="panel-header">
+      <h2>📁 Disque</h2>
+      <div class="dir-tabs">
+        <div class="dir-tab active" data-dir="ALL" onclick="filterDir('ALL',this)">Tous</div>
+        {% set dirs_present = disk_files | map(attribute='dir') | list | unique | list %}
+        {% for d in ['FM','A5','NP','300','TIFF','ARTIST_FULL'] %}
+          {% if d in dirs_present %}
+            <div class="dir-tab" data-dir="{{ d }}" onclick="filterDir('{{ d }}',this)">{{ d }}</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div class="photo-grid" id="photoGrid">
+      {% for f in disk_files %}
+      <div class="photo-card {{ 'is-best' if f.best else '' }}"
+           data-dir="{{ f.dir }}"
+           data-url="{{ f.url }}"
+           data-filename="{{ f.filename }}"
+           data-role="{{ f.role }}"
+           onclick="selectPhoto(this)"
+           onmouseenter="showZoom('{{ f.url }}','{{ f.filename }}')"
+           onmouseleave="hideZoom()">
+        <span class="dir-badge" style="color:{{ {'FM':'#4ade80','A5':'#fbbf24','NP':'#c084fc','300':'#67e8f9','TIFF':'#fda4af','ARTIST_FULL':'#fb923c'}.get(f.dir,'#aaa') }}">{{ f.dir }}</span>
+        {% if f.best %}<span class="best-badge">★ MEILLEURE</span>{% endif %}
+        {% if f.width %}<span class="px-badge">{{ f.width }}×{{ f.height }}</span>{% endif %}
+        {% if f.filesize %}
+          {% set mb = (f.filesize / 1048576) %}
+          <span class="size-badge {% if mb >= 5 %}heavy{% elif mb < 1 %}light{% endif %}">
+            {% if mb >= 1 %}{{ "%.1f"|format(mb) }} Mo{% else %}{{ (f.filesize // 1024) }} Ko{% endif %}
+          </span>
+        {% endif %}
+        {% if f.nas %}
+        <span class="nas-badge">NAS</span>
+        <button class="btn-nas-copy" onclick="nasToFM(event,this,'{{ f.nas_path }}')" title="Copier dans FM et assigner">→ FM</button>
+        {% endif %}
+        <a class="edit-btn" href="/edit/{{ f.dir }}/{{ f.filename }}" title="Éditer" onclick="event.stopPropagation()">✏</a>
+        <a class="dl-btn" href="{{ f.url }}" download="{{ f.filename }}" title="Télécharger" onclick="event.stopPropagation()">⬇</a>
+        <img src="{{ f.thumb }}" alt="{{ f.filename }}" loading="lazy"
+             onerror="this.style.display='none'">
+        <div class="meta">
+          <span class="role role-{{ f.role.replace(' ','') }}">{{ f.role }}</span>
+          <div class="fname">{{ f.filename }}</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-msg">Aucun fichier trouvé sur disque pour {{ aw.id_name }}</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Odoo slots + FM status ── -->
+  <div class="panel-right">
+    <div class="panel-header">
+      <h2>🗄 Odoo — champs photos</h2>
+    </div>
+    <div class="slots">
+      {% for field, label in odoo_fields %}
+      {% set url = odoo_photos.get(field, '') %}
+      <div class="slot" data-field="{{ field }}" onclick="assignToSlot(this)">
+        <div class="slot-thumb">
+          {% if url %}
+            <img src="{{ url }}" alt="{{ label }}" onerror="this.style.display='none'">
+          {% else %}
+            <span class="no-photo">⬜</span>
+          {% endif %}
+        </div>
+        <div class="slot-info">
+          <div class="slot-label">{{ label }} <span style="font-size:.65rem;font-weight:400;color:#444;font-family:monospace">{{ field }}</span></div>
+          <div class="slot-url {{ 'has-url' if url else '' }}" title="{{ url }}">
+            {{ url or 'vide' }}
+          </div>
+        </div>
+        <div class="slot-actions" id="actions-{{ field }}">
+          <button class="slot-upload-btn" onclick="openUpload(event,'{{ field }}','{{ label }}')">📤</button>
+          {% if url %}
+          <button class="slot-fm-btn" onclick="pushSlotToFM(event,'{{ field }}',this)" title="Pousser ce champ vers FileMaker">→FM</button>
+          <button class="btn-clear" onclick="clearSlot(event, this, '{{ field }}')">✕</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- FM Status -->
+    <button class="fm-toggle" onclick="toggleFM(this)">
+      <span id="fmToggleIcon">▼</span> Statut FileMaker
+      <span id="fmSummary" style="margin-left:auto;color:#666;font-size:.7rem"></span>
+    </button>
+    <div class="fm-panel open" id="fmPanel">
+      <div id="fmRows"><div style="padding:12px 14px;color:#444;font-size:.75rem">Chargement…</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar">
+  <span id="selectedInfo" class="selected-info" style="display:none"></span>
+  <span class="hint" id="hint">← Clique une photo à gauche, puis un slot Odoo à droite pour assigner</span>
+</div>
+
+<div id="toast"></div>
+
+<!-- Upload modal -->
+<div id="uploadModal">
+  <div class="ubox">
+    <h3>📤 Nouvelle photo</h3>
+    <div class="u-target" id="uTarget"></div>
+    <div id="uDrop" onclick="document.getElementById('uInput').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="onUDrop(event)">
+      <p>Glisse un fichier ici ou clique pour sélectionner</p>
+      <em>JPG · PNG · TIFF</em>
+    </div>
+    <input type="file" id="uInput" accept=".jpg,.jpeg,.png,.tif,.tiff"
+           style="display:none" onchange="onUPick(this.files[0])">
+    <div id="uPreview">
+      <img id="uThumb">
+      <span class="uname" id="uName"></span>
+      <span class="usize" id="uSize"></span>
+    </div>
+    <div class="u-note">
+      Le fichier sera renommé <strong id="uDestName">…</strong>,
+      converti en JPEG et sauvegardé dans <strong>FM/</strong>.<br>
+      Le champ Odoo sera mis à jour automatiquement.
+    </div>
+    <div class="u-btns">
+      <button class="btn-secondary" onclick="closeUpload()">Annuler</button>
+      <button class="btn-upload" id="btnUSend" onclick="doUpload()" disabled>⬆ Envoyer &amp; Assigner</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ODOO_ID = {{ aw.odoo_id or 'null' }};
+let selectedCard = null;
+let selectedUrl  = null;
+
+function filterDir(dir, tabEl) {
+  document.querySelectorAll('.dir-tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  document.querySelectorAll('.photo-card').forEach(card => {
+    card.style.display = (dir === 'ALL' || card.dataset.dir === dir) ? '' : 'none';
+  });
+}
+
+// Role → Odoo fields mapping for smart alignment
+const ROLE_TO_FIELDS = {
+  'MAIN':      ['main_super_picture_hd'],
+  'RECTO':     ['main_super_picture_hd'],
+  'BACK':      ['back_pictures'],
+  'VERSO':     ['back_pictures'],
+  'FRAME':     ['frame_picture'],
+  'PERS':      ['perspective_url'],
+  'IN SITU':   ['x_insitu_url'],
+  'SIGNATURE': ['signatures_pictures'],
+  'OTHER':     ['other_url','x_other_url_2'],
+  'DETAIL':    ['detail_1_url','detail_2_url'],
+  'LEFT':      ['x_left_url'],
+  'RIGHT':     ['x_right_url'],
+};
+
+function selectPhoto(card) {
+  // Deselect previous
+  if (selectedCard) selectedCard.classList.remove('selected');
+  document.querySelectorAll('.slot').forEach(s => {
+    s.classList.remove('drop-target'); s.classList.remove('drop-target-match');
+  });
+  if (selectedCard === card) {
+    selectedCard = null; selectedUrl = null;
+    document.getElementById('selectedInfo').style.display = 'none';
+    document.getElementById('hint').style.display = '';
+    return;
+  }
+  selectedCard = card;
+  selectedCard.classList.add('selected');
+  selectedUrl = card.dataset.url;
+  const info = document.getElementById('selectedInfo');
+  info.textContent = `✓ Sélectionné : ${card.dataset.dir} / ${card.dataset.filename}`;
+  info.style.display = '';
+  document.getElementById('hint').style.display = 'none';
+  // Highlight all slots lightly
+  document.querySelectorAll('.slot').forEach(s => s.classList.add('drop-target'));
+  // Strongly highlight matching slots based on role
+  const role = (card.dataset.role || '').toUpperCase();
+  const matchFields = ROLE_TO_FIELDS[role] || [];
+  let firstMatch = null;
+  matchFields.forEach(f => {
+    const slot = document.querySelector(`.slot[data-field="${f}"]`);
+    if (slot) {
+      slot.classList.add('drop-target-match');
+      if (!firstMatch) firstMatch = slot;
+    }
+  });
+  // Scroll to first matching slot
+  if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function assignToSlot(slotEl) {
+  if (!selectedCard) {
+    const field = slotEl.dataset.field;
+    const label = slotEl.querySelector('.slot-label').textContent;
+    openUpload(null, field, label);
+    return;
+  }
+  if (!ODOO_ID) { toast('Œuvre non synchronisée avec Odoo', 'err'); return; }
+
+  const field  = slotEl.dataset.field;
+  const absUrl = window.location.origin + selectedUrl;
+  const label  = slotEl.querySelector('.slot-label').textContent.trim();
+
+  try {
+    const r = await fetch('/api/assign', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ odoo_id: ODOO_ID, field, url: absUrl, id_name: ID_NAME })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const finalUrl = d.url || absUrl;
+      slotEl.querySelector('.slot-url').textContent = finalUrl;
+      slotEl.querySelector('.slot-url').classList.add('has-url');
+      slotEl.querySelector('.slot-thumb').innerHTML =
+        `<img src="${finalUrl}" style="width:110px;height:88px;object-fit:cover" onerror="this.style.display='none'">`;
+      // Rebuild actions keeping upload button
+      const actionsEl = document.getElementById('actions-' + field);
+      if (actionsEl) actionsEl.innerHTML =
+        `<button class="slot-upload-btn" onclick="openUpload(event,'${field}','${label}')">📤</button>
+         <button class="slot-fm-btn" onclick="pushSlotToFM(event,'${field}',this)" title="→ FileMaker">→FM</button>
+         <button class="btn-clear" onclick="clearSlot(event,this,'${field}')">✕</button>`;
+      toast(`✓ ${label} assigné`, 'ok');
+      // Deselect
+      selectedCard.classList.remove('selected');
+      selectedCard = null; selectedUrl = null;
+      document.getElementById('selectedInfo').style.display = 'none';
+      document.getElementById('hint').style.display = '';
+      document.querySelectorAll('.slot').forEach(s => { s.classList.remove('drop-target','drop-target-match'); });
+    } else {
+      toast(`Erreur : ${d.error}`, 'err');
+    }
+  } catch(e) { toast(`Erreur réseau : ${e}`, 'err'); }
+}
+
+async function clearSlot(evt, btn, field) {
+  evt.stopPropagation();
+  if (!ODOO_ID) return;
+  try {
+    const slot = btn.closest('.slot');
+    const prev_url = slot.querySelector('.slot-url')?.textContent?.trim() || '';
+    const r = await fetch('/api/assign', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ odoo_id: ODOO_ID, field, url: '', id_name: ID_NAME, prev_url })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const slot = btn.closest('.slot');
+      slot.querySelector('.slot-url').textContent = 'vide';
+      slot.querySelector('.slot-url').classList.remove('has-url');
+      slot.querySelector('.slot-thumb').innerHTML = '<span class="no-photo">⬜</span>';
+      const actionsEl = document.getElementById('actions-' + field);
+      const label = slot.querySelector('.slot-label').textContent.trim();
+      if (actionsEl) actionsEl.innerHTML =
+        `<button class="slot-upload-btn" onclick="openUpload(event,'${field}','${label}')">📤</button>`;
+      toast(`✓ ${field} vidé`, 'ok');
+    } else { toast(`Erreur : ${d.error}`, 'err'); }
+  } catch(e) { toast(`Erreur réseau : ${e}`, 'err'); }
+}
+
+/* ── Push slot → FM ─────────────────────────────────────────────────────── */
+async function pushSlotToFM(evt, field, btn) {
+  evt.stopPropagation();
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const ODOO_FIELDS = {
+      MAINFM:'main_super_picture_hd', MAIN_HD:'main_picture_hd',
+      UrlMainA5:'main_a6_picture', BACK300:'back_pictures',
+      FRAME300:'frame_picture', PERS300:'perspective_url',
+      Signature:'signatures_pictures', OTHER300:'other_url', DET300:'detail_1_url',
+    };
+    // field is the Odoo field name — find matching odoo field key
+    // field here is like 'main_super_picture_hd' (Odoo field)
+    const res = await fetch('/api/sync_check/push', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id_name: ID_NAME, fields: [field] }),
+    });
+    const d = await res.json();
+    if (d.ok && d.pushed > 0) {
+      btn.textContent = '✓FM'; btn.style.color = '#4ade80';
+      toast(`→ FM : ${field} envoyé`, 'ok');
+      setTimeout(() => { btn.textContent = '→FM'; btn.style.color = ''; btn.disabled = false; }, 3000);
+      loadFMStatus();
+    } else {
+      btn.textContent = d.error || 'Err'; btn.disabled = false;
+      toast(d.error || 'Erreur push FM', 'err');
+    }
+  } catch(e) { btn.textContent = '→FM'; btn.disabled = false; toast('Erreur réseau', 'err'); }
+}
+
+async function pushAllToFM(btn) {
+  btn.disabled = true; btn.textContent = '→ FM …';
+  try {
+    const res = await fetch('/api/sync_check/push', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id_name: ID_NAME, fields: [] }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      btn.textContent = `✓ ${d.pushed} →FM`;
+      toast(`${d.pushed} champ(s) poussé(s) vers FM`, 'ok');
+      setTimeout(() => { btn.textContent = '→ FM'; btn.disabled = false; loadFMStatus(); }, 2500);
+    } else {
+      btn.textContent = '→ FM'; btn.disabled = false;
+      toast(d.error || 'Erreur', 'err');
+    }
+  } catch(e) { btn.textContent = '→ FM'; btn.disabled = false; toast('Erreur réseau', 'err'); }
+}
+
+/* ── Upload modal ── */
+const FIELD_SUFFIX = {
+  main_super_picture_hd: '_MAIN',
+  frame_picture:         '_FRAME',
+  back_pictures:         '_BACK',
+  x_insitu_url:          '_INSITU',
+  perspective_url:       '_PERS',
+  x_right_url:           '_RIGHT',
+  x_left_url:            '_LEFT',
+  signatures_pictures:   '_SIGN',
+  x_edition_picture:     '_EDNO',
+  detail_1_url:          '_DET1',
+  detail_2_url:          '_DET2',
+  other_url:             '_OTHER',
+  x_other_url_2:         '_OTHER2',
+};
+
+let uState = { field: null, label: null, file: null };
+
+function openUpload(evt, field, label) {
+  if (evt) evt.stopPropagation();
+  uState = { field, label, file: null };
+  document.getElementById('uTarget').textContent = `→ Champ : ${label}`;
+  const suffix = FIELD_SUFFIX[field] || '_' + field.toUpperCase();
+  document.getElementById('uDestName').textContent = '{{ aw.id_name }}' + suffix + '.jpg';
+  document.getElementById('uPreview').style.display = 'none';
+  document.getElementById('uDrop').style.display = 'block';
+  document.getElementById('uInput').value = '';
+  document.getElementById('btnUSend').disabled = true;
+  document.getElementById('uploadModal').classList.add('show');
+}
+function closeUpload() {
+  document.getElementById('uploadModal').classList.remove('show');
+}
+function onUDrop(e) {
+  e.preventDefault();
+  document.getElementById('uDrop').classList.remove('over');
+  onUPick(e.dataTransfer.files[0]);
+}
+function onUPick(f) {
+  if (!f) return;
+  uState.file = f;
+  const reader = new FileReader();
+  reader.onload = ev => document.getElementById('uThumb').src = ev.target.result;
+  reader.readAsDataURL(f);
+  document.getElementById('uName').textContent = f.name;
+  document.getElementById('uSize').textContent = (f.size/1024/1024).toFixed(1) + ' Mo';
+  document.getElementById('uPreview').style.display = 'flex';
+  document.getElementById('uDrop').style.display = 'none';
+  document.getElementById('btnUSend').disabled = false;
+}
+async function doUpload() {
+  if (!uState.file) return;
+  const btn = document.getElementById('btnUSend');
+  btn.textContent = '⏳…'; btn.disabled = true;
+  const fd = new FormData();
+  fd.append('id_name', '{{ aw.id_name }}');
+  fd.append('field',   uState.field);
+  fd.append('file',    uState.file);
+  try {
+    const r = await fetch('/api/upload_to_field', { method:'POST', body: fd });
+    const d = await r.json();
+    if (!d.ok) { toast('Erreur : '+(d.error||'?'), 'err'); return; }
+    toast(d.warning ? `✓ ${d.filename} (Odoo KO : ${d.warning})` : `✓ ${d.filename} assigné`, 'ok');
+    closeUpload();
+    // Update slot visually
+    const absUrl = window.location.origin + d.url;
+    const field = uState.field;
+    const label = uState.label;
+    const slot = [...document.querySelectorAll('.slot')].find(s => s.dataset.field === field);
+    if (slot) {
+      slot.querySelector('.slot-thumb').innerHTML =
+        `<img src="${absUrl}?t=${Date.now()}" style="width:48px;height:38px;object-fit:cover">`;
+      const urlEl = slot.querySelector('.slot-url');
+      urlEl.textContent = absUrl; urlEl.classList.add('has-url');
+      const actionsEl = document.getElementById('actions-' + field);
+      if (actionsEl) actionsEl.innerHTML =
+        `<button class="slot-upload-btn" onclick="openUpload(event,'${field}','${label}')">📤</button>
+         <button class="slot-fm-btn" onclick="pushSlotToFM(event,'${field}',this)" title="→ FileMaker">→FM</button>
+         <button class="btn-clear" onclick="clearSlot(event,this,'${field}')">✕</button>`;
+    }
+  } catch(e) { toast('Erreur réseau', 'err'); }
+  finally { btn.textContent = '⬆ Envoyer & Assigner'; btn.disabled = false; }
+}
+document.getElementById('uploadModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('uploadModal')) closeUpload();
+});
+
+let toastTimer;
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ── Auto-assign ────────────────────────────────────────────────────────────
+async function autoAssign() {
+  if (!ODOO_ID) { toast('Œuvre non synchronisée avec Odoo', 'err'); return; }
+  if (!confirm('Assigner automatiquement les photos selon les conventions de nommage ?\nCela écrasera les champs Odoo déjà remplis.')) return;
+  try {
+    const r = await fetch('/api/auto_assign/{{ aw.id_name }}', {method:'POST'});
+    const d = await r.json();
+    if (d.ok) {
+      const count = Object.keys(d.assigned).length;
+      toast(count ? `⚡ ${count} champ(s) assigné(s) automatiquement` : d.message, 'ok');
+      if (count) setTimeout(() => location.reload(), 1200);
+    } else {
+      toast('Erreur : ' + d.error, 'err');
+    }
+  } catch(e) { toast('Erreur réseau', 'err'); }
+}
+
+/* ── NAS → FM ───────────────────────────────────────────────────────────── */
+async function nasToFM(evt, btn, nasPath) {
+  evt.stopPropagation();
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch('/api/nas_to_fm', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id_name: ID_NAME, nas_path: nasPath }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      btn.textContent = '✓ FM';
+      toast(d.fm_pushed ? `✓ Copié & poussé vers FM` : `✓ Copié dans FM (push FM KO)`, 'ok');
+      // Update main slot visually
+      const slot = document.querySelector('.slot[data-field="main_super_picture_hd"]');
+      if (slot && d.photo_url) {
+        slot.querySelector('.slot-thumb').innerHTML =
+          `<img src="${d.photo_url}?t=${Date.now()}" style="width:48px;height:38px;object-fit:cover">`;
+        const urlEl = slot.querySelector('.slot-url');
+        urlEl.textContent = d.photo_url; urlEl.classList.add('has-url');
+        const actionsEl = document.getElementById('actions-main_super_picture_hd');
+        if (actionsEl) actionsEl.innerHTML =
+          `<button class="slot-upload-btn" onclick="openUpload(event,'main_super_picture_hd','Main HD')">📤</button>
+           <button class="slot-fm-btn" onclick="pushSlotToFM(event,'main_super_picture_hd',this)" title="→ FileMaker">→FM</button>
+           <button class="btn-clear" onclick="clearSlot(event,this,'main_super_picture_hd')">✕</button>`;
+      }
+      setTimeout(() => { loadFMStatus(); }, 1500);
+    } else {
+      btn.textContent = '→ FM'; btn.disabled = false;
+      toast(d.error || 'Erreur', 'err');
+    }
+  } catch(e) {
+    btn.textContent = '→ FM'; btn.disabled = false;
+    toast('Erreur réseau', 'err');
+  }
+}
+
+// ── FM Status ──────────────────────────────────────────────────────────────
+let fmLoaded = false;
+async function toggleFM(btn) {
+  const panel = document.getElementById('fmPanel');
+  const icon  = document.getElementById('fmToggleIcon');
+  const open  = panel.classList.toggle('open');
+  icon.textContent = open ? '▼' : '▶';
+  if (open && !fmLoaded) { fmLoaded = true; await loadFMStatus(); }
+}
+// Auto-load on page open
+fmLoaded = true;
+
+async function loadFMStatus() {
+  const container = document.getElementById('fmRows');
+  try {
+    const r = await fetch('/api/fm_status/{{ aw.id_name }}');
+    const d = await r.json();
+    if (d.error) {
+      container.innerHTML = `<div style="padding:12px 14px;color:#f87171;font-size:.75rem">Erreur : ${d.error}</div>`;
+      return;
+    }
+    const filled = d.fields.filter(f => f.url);
+    const local  = d.fields.filter(f => f.local);
+    document.getElementById('fmSummary').textContent = `${filled.length} champs remplis · ${local.length} fichiers locaux`;
+    container.innerHTML = d.fields.map(f => {
+      if (!f.url) return `
+        <div class="fm-row">
+          <span class="fm-field">${f.field}</span>
+          <span class="fm-status">—</span>
+          <span class="fm-url empty">vide</span>
+        </div>`;
+      const statusIcon = f.local ? '✅' : '⚠️';
+      const urlClass   = f.local ? 'ok' : 'missing';
+      const thumb      = f.local ? `<img class="fm-thumb" src="${f.local_path}" onerror="this.style.display='none'">` : `<div class="fm-thumb"></div>`;
+      return `
+        <div class="fm-row">
+          ${thumb}
+          <span class="fm-field">${f.field}</span>
+          <span class="fm-status">${statusIcon}</span>
+          <span class="fm-url ${urlClass}" title="${f.url}">${f.filename || f.url}</span>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<div style="padding:12px 14px;color:#f87171;font-size:.75rem">Erreur réseau</div>`;
+  }
+}
+
+// ── Navigation clavier ─────────────────────────────────────────────────────
+const ID_NAME = '{{ aw.id_name }}';
+let allIds = [];
+
+async function loadNav() {
+  try {
+    const r = await fetch('/api/artwork_list');
+    allIds = await r.json();
+    const idx = allIds.indexOf(ID_NAME);
+    const prev = document.getElementById('btnPrev');
+    const next = document.getElementById('btnNext');
+    if (idx > 0) prev.href = '/artwork/' + allIds[idx-1];
+    else prev.classList.add('disabled');
+    if (idx < allIds.length - 1) next.href = '/artwork/' + allIds[idx+1];
+    else next.classList.add('disabled');
+  } catch(e) {}
+}
+loadNav();
+loadFMStatus();
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const prev = document.getElementById('btnPrev');
+  const next = document.getElementById('btnNext');
+  if (e.key === 'ArrowLeft'  && prev.href && !prev.classList.contains('disabled')) location.href = prev.href;
+  if (e.key === 'ArrowRight' && next.href && !next.classList.contains('disabled')) location.href = next.href;
+});
+</script>
+
+<!-- Zoom preview panel -->
+<div id="zoomPreview">
+  <img id="zoomImg" src="" alt="">
+  <div class="zoom-info" id="zoomInfo"></div>
+</div>
+<script>
+let zoomTimer = null;
+function showZoom(url, fname) {
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => {
+    const p = document.getElementById('zoomPreview');
+    const img = document.getElementById('zoomImg');
+    const info = document.getElementById('zoomInfo');
+    // TIFFs can't be displayed by browsers → use /thumb/ route which converts to JPEG
+    const displayUrl = /\.tiff?$/i.test(url) ? url.replace('/photo/', '/thumb/') : url;
+    img.src = displayUrl;
+    info.textContent = fname;
+    p.style.display = 'block';
+  }, 200);
+}
+function hideZoom() {
+  clearTimeout(zoomTimer);
+  document.getElementById('zoomPreview').style.display = 'none';
+}
+</script>
+
+</body>
+</html>

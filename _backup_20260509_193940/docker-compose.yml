@@ -1,0 +1,32 @@
+services:
+  web:
+    build: .
+    container_name: reviewv2
+    restart: unless-stopped
+    volumes:
+      - /home/projet/pictures/img/FM:/photos/FM
+      - /home/projet/pictures/img/A5:/photos/A5
+      - /home/projet/pictures/img/np:/photos/np
+      - /home/projet/pictures/img/300:/photos/300
+      - /home/projet/pictures/img/tiff:/photos/tiff
+      - /home/pictures/ARTIST-FULL:/photos/artist_full
+      - /media:/photos/media:ro
+      - /home/projet/Perspective_backup:/photos/perspective:ro
+      - /home/projet/perspective_images/Perspective:/photos/perspective_new:ro
+      - ./data:/app/data
+      - ./app:/app/app
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.reviewv2.rule=Host(`review.operagallery.com`)"
+      - "traefik.http.routers.reviewv2.entrypoints=websecure"
+      - "traefik.http.routers.reviewv2.tls.certresolver=letsencrypt"
+      - "traefik.http.services.reviewv2.loadbalancer.server.port=5000"
+    networks:
+      - traefik-network
+
+networks:
+  traefik-network:
+    external: true

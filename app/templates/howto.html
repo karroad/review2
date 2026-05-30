@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide d'utilisation — ReviewV2</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:system-ui,sans-serif; background:#0a0a0a; color:#d0d0d0;
+  min-height:100vh; }
+header { display:flex; align-items:center; gap:12px; padding:10px 20px;
+  background:#141414; border-bottom:2px solid #222; }
+.h-logo { font-size:1rem; font-weight:800; color:#fff; }
+.h-logo span { color:#3b82f6; }
+header a { color:#555; text-decoration:none; font-size:.82rem; margin-left:auto; }
+header a:hover { color:#aaa; }
+
+.page { max-width:860px; margin:0 auto; padding:40px 24px 80px; }
+
+h1 { font-size:1.5rem; font-weight:800; color:#fff; margin-bottom:6px; }
+.subtitle { font-size:.9rem; color:#444; margin-bottom:40px; }
+
+.toc { background:#0d0d0d; border:1px solid #1a1a1a; border-radius:8px;
+  padding:16px 20px; margin-bottom:40px; display:inline-block; min-width:260px; }
+.toc h3 { font-size:.72rem; font-weight:700; color:#333; text-transform:uppercase;
+  letter-spacing:.08em; margin-bottom:10px; }
+.toc a { display:block; font-size:.82rem; color:#3b82f6; text-decoration:none;
+  padding:3px 0; }
+.toc a:hover { color:#93c5fd; }
+
+section { margin-bottom:48px; }
+section h2 { font-size:1.1rem; font-weight:700; color:#fff;
+  padding-bottom:8px; border-bottom:1px solid #1a1a1a; margin-bottom:20px;
+  display:flex; align-items:center; gap:8px; }
+section h2 .num { display:inline-flex; align-items:center; justify-content:center;
+  width:24px; height:24px; border-radius:50%; background:#1e3a5f;
+  color:#60a5fa; font-size:.75rem; font-weight:800; flex-shrink:0; }
+
+h3 { font-size:.88rem; font-weight:700; color:#ccc; margin:20px 0 8px; }
+p  { font-size:.85rem; color:#666; line-height:1.7; margin-bottom:10px; }
+ul, ol { padding-left:20px; margin-bottom:10px; }
+li { font-size:.85rem; color:#666; line-height:1.8; }
+li strong { color:#aaa; }
+
+.card-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.card { background:#0d0d0d; border:1px solid #1a1a1a; border-radius:8px;
+  padding:14px 16px; flex:1; min-width:200px; }
+.card .icon { font-size:1.3rem; margin-bottom:8px; }
+.card h4 { font-size:.82rem; font-weight:700; color:#ddd; margin-bottom:6px; }
+.card p  { font-size:.78rem; color:#555; margin:0; line-height:1.6; }
+
+.step { display:flex; gap:12px; align-items:flex-start; margin-bottom:14px; }
+.step .n { flex-shrink:0; width:22px; height:22px; border-radius:50%;
+  background:#0c1e3a; color:#60a5fa; font-size:.72rem; font-weight:800;
+  display:flex; align-items:center; justify-content:center; margin-top:2px; }
+.step div { font-size:.85rem; color:#666; line-height:1.6; }
+.step div strong { color:#ccc; }
+
+kbd { display:inline-block; padding:1px 6px; border-radius:4px;
+  background:#161616; border:1px solid #2a2a2a; color:#aaa;
+  font-size:.75rem; font-family:monospace; }
+.badge { display:inline-block; padding:1px 8px; border-radius:10px;
+  font-size:.72rem; font-weight:600; }
+.badge.blue   { background:#0c1e3a; color:#60a5fa; border:1px solid #2563eb; }
+.badge.green  { background:#071c10; color:#4ade80; border:1px solid #16a34a; }
+.badge.orange { background:#1c0d00; color:#fbbf24; border:1px solid #b45309; }
+.badge.red    { background:#2e0000; color:#f87171; border:1px solid #b91c1c; }
+.badge.purple { background:#170d26; color:#a78bfa; border:1px solid #7c3aed; }
+
+.tip { background:#071c10; border-left:3px solid #16a34a; border-radius:0 6px 6px 0;
+  padding:10px 14px; margin:12px 0; }
+.tip p { color:#4ade80; margin:0; font-size:.82rem; }
+.warn { background:#1c0d00; border-left:3px solid #d97706; border-radius:0 6px 6px 0;
+  padding:10px 14px; margin:12px 0; }
+.warn p { color:#fbbf24; margin:0; font-size:.82rem; }
+
+table.ref { width:100%; border-collapse:collapse; margin-bottom:16px; }
+table.ref th { text-align:left; font-size:.72rem; color:#333; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; padding:6px 10px;
+  border-bottom:1px solid #1a1a1a; }
+table.ref td { font-size:.8rem; color:#666; padding:7px 10px;
+  border-bottom:1px solid #0f0f0f; vertical-align:top; }
+table.ref td:first-child { color:#aaa; font-weight:600; white-space:nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-logo">Review<span>V2</span></div>
+  <a href="/">← Retour à l'accueil</a>
+</header>
+
+<div class="page">
+
+<h1>Guide d'utilisation</h1>
+<p class="subtitle">ReviewV2 — Outil de gestion et validation des photos d'œuvres d'art</p>
+
+<div class="toc">
+  <h3>Sommaire</h3>
+  <a href="#overview">1. Vue d'ensemble</a>
+  <a href="#express">2. Mode Express — validation rapide</a>
+  <a href="#artwork">3. Fiche œuvre</a>
+  <a href="#editor">4. Éditeur de photos</a>
+  <a href="#upload">5. Ajouter des photos</a>
+  <a href="#assign">6. Assigner aux champs Odoo</a>
+  <a href="#filters">7. Filtres</a>
+  <a href="#log">8. Journal d'activité</a>
+  <a href="#accounts">9. Comptes utilisateurs</a>
+</div>
+
+<!-- ── 1. Vue d'ensemble ── -->
+<section id="overview">
+  <h2><span class="num">1</span> Vue d'ensemble</h2>
+  <p>ReviewV2 est un outil de validation et d'édition des photos d'œuvres. Il permet de :</p>
+  <div class="card-row">
+    <div class="card">
+      <div class="icon">📁</div>
+      <h4>Voir les photos sur disque</h4>
+      <p>Parcourir les répertoires FM, A5, NP, 300, TIFF pour chaque œuvre.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🗃</div>
+      <h4>Gérer les champs Odoo</h4>
+      <p>Assigner les photos aux champs Odoo (Super HD, Back, Detail…) en quelques clics.</p>
+    </div>
+    <div class="card">
+      <div class="icon">✏</div>
+      <h4>Éditer les photos</h4>
+      <p>Recadrer, redresser, ajuster luminosité / contraste / saturation, générer FM+A5.</p>
+    </div>
+    <div class="card">
+      <div class="icon">📤</div>
+      <h4>Uploader de nouvelles photos</h4>
+      <p>Ajouter une photo directement depuis ton disque, nommée et assignée automatiquement.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── 2. Mode Express ── -->
+<section id="express">
+  <h2><span class="num">2</span> Mode Express — validation rapide</h2>
+  <p>Le Mode Express est conçu pour traiter <strong>15 000+ œuvres rapidement</strong>. Accès via le bouton <span class="badge blue">⚡ Mode Express</span> en haut de l'accueil.</p>
+
+  <h3>Navigation</h3>
+  <p>La liste défile librement à la souris. Les détails (vignettes disque + champs Odoo) se chargent automatiquement au fil du scroll — pas besoin de cliquer.</p>
+
+  <h3>Filtres</h3>
+  <p>En haut de page, deux rangées de filtres :</p>
+  <ul>
+    <li><strong>Statut</strong> — <span class="badge blue">In Stock</span> <span class="badge purple">In Transit</span> <span class="badge orange">Returned</span> <span class="badge">Delivered</span> — filtres cumulables (OU)</li>
+    <li><strong>Rôle disque</strong> — BACK, IN SITU, DETAIL, FRAME, SIGNATURE, MAIN — cliquer une fois = <span class="badge green">✓ présent</span>, deux fois = <span class="badge red">✗ absent</span>, trois fois = neutre</li>
+    <li><span class="badge">Pas sur disque</span> — affiche uniquement les œuvres sans aucun fichier sur disque</li>
+  </ul>
+
+  <h3>Assigner une photo existante (disque → Odoo)</h3>
+  <div class="step"><div class="n">1</div><div>Clique sur une <strong>vignette disque</strong> (côté gauche) → elle s'entoure en orange, une barre apparaît en haut</div></div>
+  <div class="step"><div class="n">2</div><div>Clique sur le <strong>champ Odoo cible</strong> (côté droit) → assigné instantanément</div></div>
+  <div class="step"><div class="n">3</div><div><kbd>Esc</kbd> pour annuler la sélection</div></div>
+
+  <h3>Uploader une nouvelle photo vers un champ Odoo</h3>
+  <div class="step"><div class="n">1</div><div>Clique directement sur un <strong>champ Odoo</strong> sans avoir sélectionné de photo, ou clique le bouton <strong>📤</strong> sur le slot</div></div>
+  <div class="step"><div class="n">2</div><div>Un modal s'ouvre — glisse ou sélectionne le fichier depuis ton disque</div></div>
+  <div class="step"><div class="n">3</div><div>Clique <strong>⬆ Envoyer & Assigner</strong> → le fichier est renommé automatiquement (<code>ARTIST-ID_BACK.jpg</code> etc.), sauvegardé dans FM/, et le champ Odoo est mis à jour</div></div>
+
+  <h3>Auto-assign</h3>
+  <p>Le bouton <span class="badge blue">⚡ Auto-assign</span> dans le détail d'une œuvre assigne automatiquement toutes les photos disque aux bons champs selon les conventions de nommage. Raccourci clavier : <kbd>A</kbd>.</p>
+</section>
+
+<!-- ── 3. Fiche œuvre ── -->
+<section id="artwork">
+  <h2><span class="num">3</span> Fiche œuvre</h2>
+  <p>Accès en cliquant une œuvre depuis l'accueil, ou via <span class="badge">🔗 Fiche</span> dans le Mode Express.</p>
+  <ul>
+    <li><strong>Panneau gauche</strong> — toutes les photos sur disque, par répertoire (FM / A5 / NP / 300 / TIFF). Clique une photo pour la sélectionner (bordure jaune).</li>
+    <li><strong>Panneau droit</strong> — les 12 champs Odoo avec leur photo actuelle. Clique un slot après avoir sélectionné une photo pour assigner.</li>
+    <li><strong>Bouton 📤 Upload</strong> — sur chaque slot, permet d'uploader un nouveau fichier directement sans passer par l'étape de sélection à gauche.</li>
+    <li><strong>⚡ Auto-assign</strong> — assigne automatiquement selon les rôles détectés dans les noms de fichiers.</li>
+    <li><strong>✏ Éditer</strong> — icône sur chaque photo en survol, ouvre l'éditeur.</li>
+    <li><kbd>←</kbd> / <kbd>→</kbd> — navigation entre les œuvres.</li>
+  </ul>
+</section>
+
+<!-- ── 4. Éditeur ── -->
+<section id="editor">
+  <h2><span class="num">4</span> Éditeur de photos</h2>
+  <p>Accès via l'icône ✏ sur n'importe quelle photo. L'éditeur propose plusieurs outils dans le panneau de droite :</p>
+
+  <h3>📤 Nouvelle version</h3>
+  <p>Glisse ou sélectionne un fichier pour remplacer la photo actuelle. L'ancienne version est automatiquement sauvegardée dans <code>_backups/</code> avant d'être écrasée.</p>
+
+  <h3>↻ Rotation</h3>
+  <p>Boutons -90° / +90° / 180° pour les rotations simples.</p>
+
+  <h3>📐 Redresser</h3>
+  <p>Pour corriger une photo légèrement de travers :</p>
+  <div class="step"><div class="n">1</div><div>Clique <strong>✏ Tracer</strong> — un overlay sombre apparaît sur la photo</div></div>
+  <div class="step"><div class="n">2</div><div>Clique et glisse le long d'un bord qui devrait être horizontal ou vertical — une ligne jaune apparaît avec l'angle calculé en temps réel</div></div>
+  <div class="step"><div class="n">3</div><div>Clique <strong>Appliquer</strong> — la correction est mémorisée</div></div>
+  <div class="step"><div class="n">4</div><div>Sauvegarde normalement — Pillow applique la rotation fine et recadre automatiquement les bords blancs</div></div>
+
+  <h3>✂ Recadrage</h3>
+  <div class="step"><div class="n">1</div><div>Choisis un ratio (Libre / 1:1 / 4:3 / 3:2 / 16:9) puis clique <strong>Activer</strong></div></div>
+  <div class="step"><div class="n">2</div><div>Glisse les poignées ou dessine un nouveau cadre dans la zone sombre</div></div>
+  <div class="step"><div class="n">3</div><div>Clique <strong>Appliquer</strong> pour valider le recadrage</div></div>
+
+  <h3>🎨 Ajustements</h3>
+  <p>Sliders de luminosité, contraste, saturation — aperçu en temps réel via CSS filter. Appliqués au pixel lors de la sauvegarde.</p>
+
+  <h3>📐 Générer versions</h3>
+  <table class="ref">
+    <tr><th>Bouton</th><th>Description</th></tr>
+    <tr><td>→ FM</td><td>Génère une version max 3307px dans FM/</td></tr>
+    <tr><td>→ A5</td><td>Génère une version max 1980px dans A5/</td></tr>
+    <tr><td>→ FM+A5</td><td>Génère les deux en une fois</td></tr>
+    <tr><td>💾 Remplacer</td><td>Écrase le fichier original avec toutes les modifications</td></tr>
+  </table>
+  <div class="tip"><p>Astuce : la sauvegarde applique toujours toutes les modifications en cours (rotation + redressement + recadrage + ajustements couleur) en une seule passe.</p></div>
+</section>
+
+<!-- ── 5. Upload ── -->
+<section id="upload">
+  <h2><span class="num">5</span> Ajouter des photos</h2>
+
+  <h3>Via le Mode Express (bouton 📤 Ajouter photos)</h3>
+  <p>Dans le header du Mode Express, le bouton <strong>📤 Ajouter photos</strong> permet d'uploader un ou plusieurs fichiers dans un répertoire choisi (FM / A5 / NP / 300 / TIFF). Les fichiers existants ne sont pas écrasés.</p>
+
+  <h3>Via un slot Odoo (upload + assignation en une étape)</h3>
+  <p>Depuis la fiche œuvre ou le Mode Express, clique le bouton <strong>📤</strong> sur n'importe quel champ Odoo. Le fichier uploadé est :</p>
+  <ul>
+    <li>Renommé automatiquement selon le champ cible (<code>ARTIST-ID_BACK.jpg</code>, <code>_MAIN.jpg</code>, etc.)</li>
+    <li>Converti en JPEG et sauvegardé dans <strong>FM/</strong></li>
+    <li>Assigné directement au champ Odoo</li>
+  </ul>
+
+  <table class="ref">
+    <tr><th>Champ Odoo</th><th>Suffixe généré</th></tr>
+    <tr><td>Super HD / Main HD / Web / HD Web</td><td><code>_MAIN.jpg</code></td></tr>
+    <tr><td>A6</td><td><code>_MAIN_A5.jpg</code></td></tr>
+    <tr><td>Back</td><td><code>_BACK.jpg</code></td></tr>
+    <tr><td>Detail 1 / Detail 2</td><td><code>_DETAIL_1.jpg</code> / <code>_DETAIL_2.jpg</code></td></tr>
+    <tr><td>Frame</td><td><code>_FRAME.jpg</code></td></tr>
+    <tr><td>Perspective</td><td><code>_IN_SITU.jpg</code></td></tr>
+    <tr><td>Signature</td><td><code>_SIGNATURE.jpg</code></td></tr>
+  </table>
+
+  <div class="warn"><p>Si un fichier du même nom existe déjà dans FM/, un compteur est ajouté automatiquement : <code>_BACK_2.jpg</code>, <code>_BACK_3.jpg</code>, etc.</p></div>
+</section>
+
+<!-- ── 6. Assigner ── -->
+<section id="assign">
+  <h2><span class="num">6</span> Assigner aux champs Odoo</h2>
+  <p>Il existe deux façons d'assigner une photo à un champ Odoo :</p>
+  <ul>
+    <li><strong>Photo existante sur disque</strong> → sélectionne la photo à gauche → clique le slot cible à droite</li>
+    <li><strong>Nouvelle photo depuis ton disque</strong> → clique directement le slot ou son bouton 📤 → modal d'upload</li>
+  </ul>
+  <p>L'assignation envoie l'URL publique de la photo (<code>https://review.operagallery.com/photo/FM/...</code>) directement dans le champ Odoo via l'API JSON-RPC.</p>
+  <div class="tip"><p>Chaque assignation est enregistrée dans le <a href="/log" style="color:#4ade80">journal d'activité</a> avec l'utilisateur, la date, le champ et le fichier.</p></div>
+</section>
+
+<!-- ── 7. Filtres ── -->
+<section id="filters">
+  <h2><span class="num">7</span> Filtres du Mode Express</h2>
+  <table class="ref">
+    <tr><th>Filtre</th><th>Logique</th><th>Usage</th></tr>
+    <tr><td>Statut (In Stock, In Transit…)</td><td>OU — plusieurs statuts cumulables</td><td>Se concentrer sur les œuvres les plus urgentes (In Stock en priorité)</td></tr>
+    <tr><td>Rôle disque (BACK, MAIN…)</td><td>ET — tous les rôles sélectionnés doivent correspondre</td><td>1 clic = présent (vert ✓), 2 clics = absent (rouge ✗), 3 clics = neutre</td></tr>
+    <tr><td>Pas sur disque</td><td>—</td><td>Identifier les œuvres sans aucun fichier photo</td></tr>
+    <tr><td>Recherche texte</td><td>—</td><td>Filtrer par ID, titre ou artiste</td></tr>
+  </table>
+  <p>Exemple : <span class="badge blue">In Stock</span> + <span class="badge red">✗ BACK</span> → toutes les œuvres en stock qui n'ont pas de photo de dos.</p>
+</section>
+
+<!-- ── 8. Journal ── -->
+<section id="log">
+  <h2><span class="num">8</span> Journal d'activité</h2>
+  <p>Toutes les actions (assignation, upload, suppression) sont enregistrées dans la <a href="/log" style="color:#60a5fa">page Journal</a>.</p>
+  <table class="ref">
+    <tr><th>Colonne</th><th>Description</th></tr>
+    <tr><td>Date</td><td>Horodatage précis de l'action</td></tr>
+    <tr><td>Utilisateur</td><td>Login de l'utilisateur connecté</td></tr>
+    <tr><td>Action</td><td><code>assign</code> / <code>upload_assign</code> / <code>clear</code></td></tr>
+    <tr><td>Œuvre</td><td>ID de l'œuvre (ex: ABBOMI-41283)</td></tr>
+    <tr><td>Champ Odoo</td><td>Nom technique du champ mis à jour</td></tr>
+    <tr><td>Fichier</td><td>Nom du fichier photo</td></tr>
+    <tr><td>FM sync</td><td>✓ si synchronisé vers FileMaker, ⏳ en attente</td></tr>
+  </table>
+  <p>La synchronisation vers FileMaker s'effectue automatiquement toutes les 15 minutes (une fois les paramètres FM configurés dans <code>.env</code>).</p>
+</section>
+
+<!-- ── 9. Comptes ── -->
+<section id="accounts">
+  <h2><span class="num">9</span> Comptes utilisateurs</h2>
+  <p>L'authentification utilise un login + mot de passe + <strong>code TOTP</strong> (Google Authenticator ou Authy).</p>
+  <p>Pour configurer l'authentificateur, ouvrir le lien :</p>
+  <p style="margin:10px 0;padding:10px 14px;background:#0d0d0d;border-radius:6px;font-family:monospace;font-size:.82rem;color:#60a5fa">
+    https://review.operagallery.com/setup-otp/<em style="color:#93c5fd">[login]</em>
+  </p>
+  <p>Exemple pour charles : <code style="color:#60a5fa">https://review.operagallery.com/setup-otp/charles</code></p>
+  <div class="tip"><p>Scanner le QR code avec Google Authenticator → le compte est prêt. Pas besoin d'être connecté pour accéder à cette page.</p></div>
+</section>
+
+</div>
+</body>
+</html>

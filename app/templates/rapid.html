@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mode Express — ReviewV2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100vh; overflow: hidden; background: #0a0a0a;
+  color: #e5e5e5; font-family: system-ui, sans-serif; display: flex; flex-direction: column; }
+
+/* ── Header ── */
+header { flex-shrink:0; display:flex; align-items:center; gap:8px;
+  padding:6px 14px; background:#111; border-bottom:1px solid #1a1a1a; }
+header a { color:#555; text-decoration:none; font-size:.78rem; }
+header a:hover { color:#aaa; }
+#searchBox { padding:4px 10px; border-radius:4px; border:1px solid #222;
+  background:#080808; color:#ccc; font-size:.75rem; width:180px; }
+#searchBox:focus { outline:none; border-color:#3b82f6; }
+#progress { font-size:.7rem; color:#2a2a2a; margin-left:auto; white-space:nowrap; }
+#hintGlobal { font-size:.62rem; color:#252525; white-space:nowrap; }
+
+/* ── Filtres ── */
+.frow { flex-shrink:0; padding:5px 14px; background:#0d0d0d;
+  border-bottom:1px solid #141414; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.flabel { font-size:.58rem; color:#2a2a2a; white-space:nowrap; }
+.fsep   { width:1px; height:14px; background:#1e1e1e; flex-shrink:0; }
+.chip { padding:2px 8px; border-radius:10px; font-size:.6rem; cursor:pointer;
+  border:1px solid #1a1a1a; background:#0a0a0a; color:#333;
+  transition:all .1s; user-select:none; white-space:nowrap; }
+.chip:hover { border-color:#2a2a2a; color:#666; }
+.chip.s-on.stk { background:#0c1e3a; border-color:#2563eb; color:#60a5fa; }
+.chip.s-on.trn { background:#170d26; border-color:#7c3aed; color:#a78bfa; }
+.chip.s-on.ret { background:#1c0d00; border-color:#b45309; color:#fbbf24; }
+.chip.s-on.dlv { background:#141414; border-color:#444;    color:#aaa;    }
+.chip.t-on.ctp { background:#1a0d2e; border-color:#a855f7; color:#c4b5fd; }
+.chip.rv-on.crv { background:#0a1e0a; border-color:#16a34a; color:#86efac; }
+.chip.r-has    { background:#071c10; border-color:#16a34a; color:#4ade80;  }
+.chip.r-mis    { background:#2e0000; border-color:#b91c1c; color:#f87171;  }
+.item.reviewed { opacity:.5; }
+.item.reviewed .ihead::after { content:'✓'; color:#4ade80; font-size:.85rem; margin-left:auto; }
+.freset { font-size:.58rem; padding:2px 7px; border-radius:4px;
+  border:1px solid #1a1a1a; background:#0a0a0a; color:#252525; cursor:pointer; }
+.freset:hover { color:#aaa; border-color:#333; }
+#fcount { font-size:.62rem; color:#2563eb; min-width:60px; }
+
+/* ── Hint bar (picking mode) ── */
+#hintBar { flex-shrink:0; display:none; align-items:center; gap:8px;
+  padding:4px 14px; background:#120d00; border-bottom:1px solid #2d1f00;
+  font-size:.72rem; position:relative; z-index:20; }
+#hintBar.show { display:flex; }
+.hb-file   { font-weight:600; color:#fbbf24; }
+.hb-text   { color:#444; }
+.hb-cancel { margin-left:auto; padding:2px 8px; border-radius:4px;
+  border:1px solid #3d2800; background:transparent; color:#555; cursor:pointer; font-size:.68rem; }
+.hb-cancel:hover { color:#fbbf24; }
+
+/* ── Feed ── */
+#feed { flex:1; overflow-y:auto; }
+
+/* ── Artwork item ── */
+.item { border-bottom:1px solid #0f0f0f; }
+.item.open { border-bottom:2px solid #1a3060; }
+
+/* Compact head row */
+.ihead {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 14px; cursor:pointer; min-height:50px;
+  transition:background .1s;
+}
+.ihead:hover { background:#0d0d0d; }
+.item.open .ihead { background:#0c1525; }
+
+.i-id   { font-size:.75rem; font-weight:700; color:#d0d0d0; flex-shrink:0; min-width:80px; }
+.i-tit  { font-size:.68rem; color:#3a3a3a; flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item.open .i-tit { color:#777; }
+.i-sta  { font-size:.58rem; font-weight:600; padding:1px 6px; border-radius:8px;
+  flex-shrink:0; white-space:nowrap; }
+.sta-stk { background:#0c1e3a; color:#3b82f6; }
+.sta-trn { background:#170d26; color:#a78bfa; }
+.sta-ret { background:#1c0d00; color:#d97706; }
+.sta-dlv { background:#141414; color:#444;    }
+.sta-oth { background:#111;    color:#2a2a2a; }
+
+.i-pills { display:flex; gap:3px; flex-wrap:wrap; flex-shrink:0; }
+.dpill { font-size:.52rem; font-weight:700; padding:1px 4px; border-radius:3px; }
+.dpill.FM   { background:#0c1e3a; color:#3b82f6; }
+.dpill.A5   { background:#071810; color:#16a34a; }
+.dpill.NP   { background:#1c0d00; color:#fb923c; }
+.dpill.d300 { background:#0c2830; color:#06b6d4; }
+.dpill.TIFF { background:#1a0014; color:#d946ef; }
+.rpill { font-size:.52rem; padding:1px 4px; border-radius:3px; background:#141414; color:#2a2a2a; }
+.rpill.r-BACK      { background:#1e0700; color:#ef4444; }
+.rpill.r-IN-SITU   { background:#081818; color:#06b6d4; }
+.rpill.r-DETAIL    { background:#170d26; color:#a78bfa; }
+.rpill.r-FRAME     { background:#181400; color:#eab308; }
+.rpill.r-SIGNATURE { background:#091609; color:#4ade80; }
+
+/* Warning: no disk files */
+.i-warn { font-size:.58rem; color:#5a1a1a; flex-shrink:0; }
+/* disk file count */
+.i-cnt { font-size:.58rem; color:#252525; flex-shrink:0; }
+
+/* Expand chevron */
+.i-chev { font-size:.7rem; color:#1e1e1e; flex-shrink:0; transition:transform .15s; }
+.item.open .i-chev { transform:rotate(90deg); color:#3b82f6; }
+
+/* ── Expanded detail ── */
+.idetail { display:none; padding:10px 14px 14px; background:#08090e;
+  border-top:1px solid #111; }
+.item.open .idetail { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+.ptitle { font-size:.58rem; font-weight:700; color:#1e1e1e; text-transform:uppercase;
+  letter-spacing:.08em; margin-bottom:7px; }
+
+/* Disk thumbnails */
+.dcard { display:flex; align-items:center; gap:6px; padding:4px 6px;
+  background:#0c0c0c; border-radius:4px; border:2px solid #141414;
+  margin-bottom:4px; cursor:pointer; transition:border-color .1s; }
+.dcard:hover   { border-color:#1e1e1e; }
+.dcard.picked  { border-color:#d97706; background:#100900; }
+.dcard img { width:93px; height:93px; object-fit:cover; border-radius:3px;
+  background:#161616; flex-shrink:0; }
+.dcard.is-best { border-color:#16a34a88 !important; background:#060f0a; }
+.best-pill { font-size:.48rem; font-weight:800; padding:1px 5px; border-radius:3px;
+  background:#14532d; color:#4ade80; border:1px solid #22c55e55; }
+.px-pill { font-size:.48rem; padding:1px 4px; border-radius:3px;
+  background:#0c1e3a; color:#7dd3fc; }
+.nas-pill { font-size:.48rem; font-weight:700; padding:1px 5px; border-radius:3px;
+  background:#1e3a5f; color:#7dd3fc; border:1px solid #3b82f655; }
+.dinfo { min-width:0; flex:1; }
+.dname { font-size:.62rem; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dmeta { display:flex; gap:3px; margin-top:2px; flex-wrap:wrap; }
+.dbadge { font-size:.5rem; font-weight:700; padding:1px 3px; border-radius:2px;
+  background:#161616; color:#333; }
+.dbadge.FM { background:#0c1e3a; color:#60a5fa; }
+.dbadge.A5 { background:#071810; color:#4ade80; }
+.dbadge.NP { background:#1c0d00; color:#fb923c; }
+.rbadge { font-size:.5rem; padding:1px 3px; border-radius:2px; background:#161616; color:#333; }
+.rbadge.MAIN      { background:#0c1e3a; color:#93c5fd; }
+.rbadge.BACK      { background:#1e0700; color:#fca5a5; }
+.rbadge.DETAIL    { background:#170d26; color:#d8b4fe; }
+.rbadge.FRAME     { background:#181400; color:#fde68a; }
+.rbadge.SIGNATURE { background:#091609; color:#86efac; }
+.rbadge.IN-SITU   { background:#081818; color:#67e8f9; }
+.dedit { font-size:.52rem; padding:2px 4px; border-radius:3px;
+  border:1px solid #1a1a1a; background:#0f0f0f; color:#2a2a2a;
+  text-decoration:none; flex-shrink:0; }
+.dedit:hover { color:#aaa; }
+
+/* Odoo slot */
+.oslot { display:flex; align-items:center; gap:6px; padding:4px 6px;
+  background:#0c0c0c; border-radius:4px; border:2px solid #141414;
+  margin-bottom:4px; transition:border-color .1s; }
+.oslot.filled { border-color:#071c1066; }
+.oslot.empty  { border-color:#2e000033; }
+body.picking .oslot { cursor:pointer; border-color:#3d2800; }
+body.picking .oslot:hover { border-color:#d97706; background:#130900; }
+.othumb { width:93px; height:93px; object-fit:cover; border-radius:3px;
+  background:#161616; flex-shrink:0; }
+.oempty { width:93px; height:93px; border-radius:3px; flex-shrink:0;
+  background:#0f0f0f; display:flex; align-items:center; justify-content:center;
+  font-size:.85rem; color:#1a1a1a; }
+.oinfo { min-width:0; flex:1; }
+.olabel { font-size:.65rem; font-weight:600; color:#666; }
+.ofname { font-size:.52rem; color:#222; margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ohint  { font-size:.52rem; color:#7c3a00; margin-top:1px; display:none; }
+body.picking .ohint { display:block; }
+.oclr { font-size:.52rem; padding:2px 4px; border-radius:3px; flex-shrink:0;
+  border:1px solid #2e0000; background:#0f0000; color:#4a1a1a; cursor:pointer; }
+.oclr:hover { color:#f87171; }
+.oupload { font-size:.52rem; padding:2px 4px; border-radius:3px; flex-shrink:0;
+  border:1px solid #1d3a6a; background:#0a1a3a; color:#3b5ea6; cursor:pointer; }
+.oupload:hover { color:#60a5fa; border-color:#3b82f6; }
+
+/* ── Match / quality badges ── */
+.dcard .match-hint { font-size:.48rem; font-weight:700; padding:1px 4px; border-radius:2px;
+  background:#1a2e00; color:#86efac; border:1px solid #16a34a; white-space:nowrap; }
+.dcard .tif-hint   { font-size:.48rem; font-weight:700; padding:1px 4px; border-radius:2px;
+  background:#2a1400; color:#fb923c; border:1px solid #b45309; }
+.oslot .url-badge  { font-size:.48rem; font-weight:700; padding:1px 5px; border-radius:3px;
+  flex-shrink:0; cursor:default; }
+.url-badge.tiff { background:#2a1400; color:#fb923c; border:1px solid #b45309; }
+.url-badge.f404 { background:#2e0000; color:#f87171; border:1px solid #b91c1c; }
+.url-badge.notbr{ background:#1a1400; color:#fbbf24; border:1px solid #854d0e; }
+.oslot.has-match       { border-color:#16a34a55 !important; background:#071c1088 !important; }
+.oslot.pick-match      { border-color:#f59e0b !important; background:#2a200088 !important;
+                         box-shadow:0 0 0 2px #f59e0b44; animation:pulse-border .8s infinite alternate; }
+.oslot.pick-match .ohint { color:#f59e0b !important; }
+@keyframes pulse-border { from { box-shadow:0 0 0 1px #f59e0b44; } to { box-shadow:0 0 0 4px #f59e0b66; } }
+
+/* Detail action bar */
+.dactions { display:flex; gap:5px; align-items:center;
+  padding:0 0 8px; grid-column:1/-1; }
+.btn { padding:3px 9px; border-radius:4px; border:1px solid #1e1e1e;
+  background:#141414; color:#666; font-size:.68rem; cursor:pointer; white-space:nowrap; }
+.btn:hover { background:#1e1e1e; color:#fff; }
+.btn-blue  { background:#0c1e3a; border-color:#2563eb; color:#60a5fa; }
+.btn-blue:hover  { background:#1e3a5f; }
+.btn-green { background:#071810; border-color:#16a34a; color:#4ade80; }
+.btn-green:hover { background:#0d2b18; }
+
+.loading-detail { color:#252525; font-size:.72rem; padding:20px;
+  grid-column:1/-1; text-align:center; }
+
+/* Toast */
+/* ── Upload-to-slot modal ── */
+#slotUploadModal { display:none; position:fixed; inset:0; z-index:310;
+  background:rgba(0,0,0,.75); align-items:center; justify-content:center; }
+#slotUploadModal.show { display:flex; }
+.subox { background:#111; border:1px solid #1e1e1e; border-radius:8px;
+  padding:20px 24px; width:380px; max-width:95vw; }
+.subox h3 { font-size:.85rem; font-weight:700; color:#ddd; margin-bottom:4px; }
+.subox .sutarget { font-size:.72rem; color:#d97706; margin-bottom:14px; }
+#suDrop { border:2px dashed #222; border-radius:6px; padding:24px 12px;
+  text-align:center; cursor:pointer; transition:all .15s; margin-bottom:10px; }
+#suDrop:hover, #suDrop.over { border-color:#d97706; background:#110900; }
+#suDrop p  { font-size:.75rem; color:#444; margin-bottom:4px; }
+#suDrop em { font-size:.65rem; color:#222; }
+#suPreview { display:none; align-items:center; gap:8px; margin-bottom:10px;
+  padding:6px; background:#0c0c0c; border-radius:5px; }
+#suPreview img { width:56px; height:56px; object-fit:cover; border-radius:3px; }
+#suPreview .suname { font-size:.7rem; color:#aaa; flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sunote { font-size:.62rem; color:#555; margin-bottom:10px; }
+.subtn-row { display:flex; gap:8px; justify-content:flex-end; }
+
+/* ── Upload modal ── */
+#uploadModal { display:none; position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,.7); align-items:center; justify-content:center; }
+#uploadModal.show { display:flex; }
+.ubox { background:#111; border:1px solid #222; border-radius:8px;
+  padding:20px 24px; width:420px; max-width:95vw; }
+.ubox h3 { font-size:.85rem; font-weight:700; color:#ddd; margin-bottom:14px; }
+.urow { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+.urow label { font-size:.72rem; color:#555; flex-shrink:0; width:70px; }
+.usel { flex:1; padding:5px 8px; border-radius:4px; border:1px solid #222;
+  background:#080808; color:#ccc; font-size:.75rem; }
+#uploadDrop { border:2px dashed #222; border-radius:6px; padding:28px 16px;
+  text-align:center; cursor:pointer; transition:border-color .15s; margin-bottom:12px; }
+#uploadDrop:hover, #uploadDrop.over { border-color:#3b82f6; background:#030d1a; }
+#uploadDrop p { font-size:.75rem; color:#333; margin-bottom:6px; }
+#uploadDrop em { font-size:.65rem; color:#222; }
+#uploadList { max-height:140px; overflow-y:auto; margin-bottom:12px; }
+.ufile { font-size:.67rem; padding:3px 0; color:#555; display:flex; justify-content:space-between; }
+.ufile.ok  { color:#4ade80; }
+.ufile.err { color:#f87171; }
+.ubtn-row { display:flex; gap:8px; justify-content:flex-end; }
+
+#toast { position:fixed; bottom:14px; right:14px; padding:6px 12px;
+  border-radius:5px; font-size:.75rem; opacity:0; transition:opacity .2s;
+  pointer-events:none; z-index:200;
+  background:#1a1a1a; border:1px solid #333; color:#ccc; }
+#toast.show { opacity:1; }
+#toast.ok  { border-color:#16a34a; background:#052e16; color:#4ade80; }
+#toast.err { border-color:#dc2626; background:#2e0000; color:#f87171; }
+#toast.inf { border-color:#d97706; background:#1a0e00; color:#fbbf24; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← Accueil</a>
+  <strong style="font-size:.8rem;color:#333">⚡ Express</strong>
+  <button class="btn" style="padding:3px 9px;font-size:.68rem" onclick="openUpload()">📤 Ajouter photos</button>
+  <input type="search" id="searchBox" placeholder="Filtrer ID / titre…" oninput="onSearch(this.value)">
+  <span id="fcount" style="font-size:.68rem;color:#2563eb;min-width:60px"></span>
+  <span id="progress">—</span>
+  <span id="hintGlobal">Scroll pour parcourir · Clic pour intervenir</span>
+</header>
+
+<div class="frow">
+  <span class="flabel">Statut :</span>
+  <button class="chip stk" data-s="In stock"   onclick="toggleS(this)">In Stock</button>
+  <button class="chip trn" data-s="In transit" onclick="toggleS(this)">In Transit</button>
+  <button class="chip ret" data-s="Returned"   onclick="toggleS(this)">Returned</button>
+  <button class="chip dlv" data-s="Delivered"  onclick="toggleS(this)">Delivered</button>
+  <div class="fsep"></div>
+  <span class="flabel">Type :</span>
+  <button class="chip ctp" data-t="master"        onclick="toggleT(this)">Master</button>
+  <button class="chip ctp" data-t="second_market" onclick="toggleT(this)">Second Market</button>
+  <button class="chip ctp" data-t="contemporary"  onclick="toggleT(this)">Contemporary</button>
+  <div class="fsep"></div>
+  <span class="flabel">Revue :</span>
+  <button class="chip crv" data-rv="pending"   onclick="toggleRv(this)">⏳ À revoir</button>
+  <button class="chip crv" data-rv="validated" onclick="toggleRv(this)">✓ Validé</button>
+  <button class="chip crv" data-rv="skipped"   onclick="toggleRv(this)">⏭ Skip</button>
+  <div class="fsep"></div>
+  <span class="flabel">Rôle disque :</span>
+  <button class="chip" data-r="BACK"      onclick="cycleR(this)">BACK</button>
+  <button class="chip" data-r="IN SITU"   onclick="cycleR(this)">IN SITU</button>
+  <button class="chip" data-r="DETAIL"    onclick="cycleR(this)">DETAIL</button>
+  <button class="chip" data-r="FRAME"     onclick="cycleR(this)">FRAME</button>
+  <button class="chip" data-r="SIGNATURE" onclick="cycleR(this)">SIGNATURE</button>
+  <button class="chip" data-r="MAIN"      onclick="cycleR(this)">MAIN</button>
+  <button class="chip" data-r="NONE"      onclick="cycleR(this)">Pas sur disque</button>
+  <button class="freset" onclick="resetF()">✕ Reset</button>
+</div>
+
+<!-- Hint bar: visible only when picking a disk photo -->
+<div id="hintBar">
+  <span>📌</span>
+  <span class="hb-file" id="hbFile"></span>
+  <span class="hb-text">→ clique sur un champ Odoo pour assigner</span>
+  <button class="hb-cancel" onclick="cancelPick()">✕ Annuler (Esc)</button>
+</div>
+
+<div id="feed"></div>
+
+<div id="toast"></div>
+
+<!-- Upload-to-slot modal -->
+<div id="slotUploadModal">
+  <div class="subox">
+    <h3>📤 Ajouter une photo</h3>
+    <div class="sutarget" id="suTarget"></div>
+    <div id="suDrop" onclick="document.getElementById('suInput').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="onSuDrop(event)">
+      <p>Glisse ou clique pour sélectionner</p>
+      <em>JPG · PNG · TIFF</em>
+    </div>
+    <input type="file" id="suInput" accept=".jpg,.jpeg,.png,.tif,.tiff"
+           style="display:none" onchange="onSuPick(this.files[0])">
+    <div id="suPreview">
+      <img id="suThumb">
+      <span class="suname" id="suName"></span>
+    </div>
+    <div class="sunote">Le fichier sera renommé et sauvegardé dans <strong>FM/</strong> · champ Odoo mis à jour automatiquement.</div>
+    <div class="subtn-row">
+      <button class="btn" onclick="closeSuModal()">Annuler</button>
+      <button class="btn btn-green" id="btnSuSend" onclick="doSlotUpload()" style="display:none">⬆ Envoyer &amp; Assigner</button>
+    </div>
+  </div>
+</div>
+
+<!-- Upload modal -->
+<div id="uploadModal">
+  <div class="ubox">
+    <h3>📤 Ajouter des photos</h3>
+    <div class="urow">
+      <label>Répertoire</label>
+      <select id="uploadDir" class="usel">
+        <option value="FM">FM</option>
+        <option value="A5">A5</option>
+        <option value="NP">NP</option>
+        <option value="300">300</option>
+        <option value="TIFF">TIFF</option>
+      </select>
+    </div>
+    <div id="uploadDrop" onclick="document.getElementById('uploadInput').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="onDrop(event)">
+      <p>Glisse des fichiers ici ou clique pour sélectionner</p>
+      <em>JPG · PNG · TIFF — plusieurs fichiers acceptés</em>
+    </div>
+    <input type="file" id="uploadInput" multiple accept=".jpg,.jpeg,.png,.tif,.tiff"
+           style="display:none" onchange="onFilePick(this.files)">
+    <div id="uploadList"></div>
+    <div class="ubtn-row">
+      <button class="btn" onclick="closeUpload()">Fermer</button>
+      <button class="btn btn-green" id="btnSend" onclick="doUpload()" style="display:none">⬆ Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+let allAW   = [];
+let visAW   = [];
+let sChips  = new Set();
+let tChips  = new Set();   // Type filter: Master / Second market / Contemporary
+let rvChips = new Set();   // Review status filter: pending / validated / skipped
+let rChips  = {};
+let sqSrch  = '';
+let sqSrchT;
+
+let openId      = null;   // artwork currently being interacted with (pick/assign)
+let curDetail   = null;
+let curOdooId   = null;
+let pickedFile  = null;
+
+/* Auto-load queue */
+const detailCache = {};   // id_name → detail data (cached forever in session)
+let   loadQueue   = [];   // id_names waiting to load
+let   activeLoads = 0;
+const MAX_PARALLEL = 3;   // max concurrent API calls
+
+let observer;             // IntersectionObserver
+
+/* ── Init ── */
+async function init() {
+  const [r1, r2, r3] = await Promise.all([
+    fetch('/api/artwork_list'),
+    fetch('/api/role_index'),
+    fetch('/api/artworks_meta'),
+  ]);
+  const ids  = await r1.json();
+  const ridx = await r2.json();
+  const meta = await r3.json();
+
+  allAW = ids.map(id => {
+    const m = meta[id] || {};
+    const x = ridx[id] || {};
+    return { id_name: id, title: m.title||'', artist: m.artist||'',
+             status: m.status||'', type: m.type||'',
+             review_status: m.review_status || 'pending',
+             roles: x.roles||[], dirs: x.dirs||[] };
+  });
+
+  applyF();
+}
+
+/* ── Filters ── */
+function toggleS(btn) {
+  const s = btn.dataset.s;
+  if (sChips.has(s)) { sChips.delete(s); btn.classList.remove('s-on'); }
+  else               { sChips.add(s);    btn.classList.add('s-on');    }
+  applyF();
+}
+function toggleT(btn) {
+  const t = btn.dataset.t;
+  if (tChips.has(t)) { tChips.delete(t); btn.classList.remove('t-on'); }
+  else               { tChips.add(t);    btn.classList.add('t-on');    }
+  applyF();
+}
+function toggleRv(btn) {
+  const v = btn.dataset.rv;
+  if (rvChips.has(v)) { rvChips.delete(v); btn.classList.remove('rv-on'); }
+  else                { rvChips.add(v);    btn.classList.add('rv-on');    }
+  applyF();
+}
+function cycleR(btn) {
+  const r = btn.dataset.r;
+  const c = rChips[r] || 0;
+  const n = c >= 1 ? -1 : c + 1;
+  rChips[r] = n;
+  btn.className = 'chip' + (n===1?' r-has': n===-1?' r-mis':'');
+  btn.textContent = (n===1?'✓ ': n===-1?'✗ ':'') + r;
+  applyF();
+}
+function resetF() {
+  sChips.clear(); tChips.clear(); rvChips.clear();
+  document.querySelectorAll('.chip[data-s]').forEach(b => b.classList.remove('s-on'));
+  document.querySelectorAll('.chip[data-t]').forEach(b => b.classList.remove('t-on'));
+  document.querySelectorAll('.chip[data-rv]').forEach(b => b.classList.remove('rv-on'));
+  document.querySelectorAll('.chip[data-r]').forEach(b => {
+    rChips[b.dataset.r] = 0; b.className = 'chip'; b.textContent = b.dataset.r;
+  });
+  sqSrch = ''; document.getElementById('searchBox').value = '';
+  applyF();
+}
+function applyF() {
+  const rl = Object.entries(rChips).filter(([,v]) => v !== 0);
+  visAW = allAW.filter(a => {
+    if (sChips.size  && !sChips.has(a.status)) return false;
+    if (tChips.size  && !tChips.has(a.type))   return false;
+    if (rvChips.size && !rvChips.has(a.review_status)) return false;
+    for (const [r, s] of rl) {
+      if (r === 'NONE') {
+        if (s === 1  && a.dirs.length > 0) return false;
+        if (s === -1 && a.dirs.length === 0) return false;
+      } else {
+        if (s === 1  && !a.roles.includes(r)) return false;
+        if (s === -1 &&  a.roles.includes(r)) return false;
+      }
+    }
+    if (sqSrch) {
+      return a.id_name.toLowerCase().includes(sqSrch) ||
+             a.title.toLowerCase().includes(sqSrch)   ||
+             a.artist.toLowerCase().includes(sqSrch);
+    }
+    return true;
+  });
+  const hasF = sChips.size || tChips.size || rvChips.size || rl.length || sqSrch;
+  document.getElementById('fcount').textContent = hasF ? visAW.length + ' résultats' : '';
+  document.getElementById('progress').textContent = visAW.length + ' œuvres';
+  renderFeed();
+}
+
+function onSearch(v) {
+  clearTimeout(sqSrchT);
+  sqSrchT = setTimeout(() => { sqSrch = v.trim().toLowerCase(); applyF(); }, 180);
+}
+
+/* ── Status helpers ── */
+function staCls(s) {
+  if (!s) return 'sta-oth';
+  s = s.toLowerCase();
+  if (s.includes('stock'))   return 'sta-stk';
+  if (s.includes('transit')) return 'sta-trn';
+  if (s.includes('return'))  return 'sta-ret';
+  if (s.includes('deliver')) return 'sta-dlv';
+  return 'sta-oth';
+}
+
+/* ── Render feed ── */
+function renderFeed() {
+  openId = null; curDetail = null; curOdooId = null; cancelPick();
+  loadQueue = [];
+  if (observer) observer.disconnect();
+
+  const feed = document.getElementById('feed');
+  if (!visAW.length) {
+    feed.innerHTML = '<div style="padding:40px;color:#252525;text-align:center">Aucune œuvre</div>';
+    return;
+  }
+
+  feed.innerHTML = visAW.map(a => {
+    const dirPills = a.dirs.map(d =>
+      `<span class="dpill ${d==='300'?'d300':d}">${d}</span>`).join('');
+    const rolePills = a.roles
+      .filter(r => ['BACK','IN SITU','DETAIL','FRAME','SIGNATURE'].includes(r))
+      .map(r => `<span class="rpill r-${r.replace(/ /g,'-')}">${r}</span>`).join('');
+    const hasDisk = a.dirs.length > 0;
+    const fileInfo = hasDisk
+      ? `<span class="i-cnt">${a.dirs.join('+')}</span>`
+      : `<span class="i-warn">⚠ pas sur disque</span>`;
+
+    // If already cached, render open immediately
+    const cached = detailCache[a.id_name];
+    const detHTML = cached
+      ? buildDetailHTML(a.id_name, cached)
+      : '<div class="loading-detail">⏳</div>';
+    const openCls = cached ? ' open' : '';
+
+    return `<div class="item${openCls}" id="item-${a.id_name}" data-id="${a.id_name}">
+      <div class="ihead">
+        <span class="i-id">${a.id_name}</span>
+        <span class="i-tit">${a.title || a.artist || ''}</span>
+        <span class="i-sta ${staCls(a.status)}">${a.status||'—'}</span>
+        <div class="i-pills">${dirPills}${rolePills}</div>
+        ${fileInfo}
+      </div>
+      <div class="idetail" id="det-${a.id_name}">${detHTML}</div>
+    </div>`;
+  }).join('');
+
+  // Observe all non-cached items for auto-load
+  observer = new IntersectionObserver(onVisible, { rootMargin: '300px', threshold: 0 });
+  document.querySelectorAll('.item:not(.open)').forEach(el => observer.observe(el));
+}
+
+/* ── Auto-load on scroll ── */
+function onVisible(entries) {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    const id = e.target.dataset.id;
+    if (detailCache[id]) { observer.unobserve(e.target); continue; }
+    if (!loadQueue.includes(id)) loadQueue.push(id);
+    observer.unobserve(e.target);
+  }
+  drainQueue();
+}
+
+function drainQueue() {
+  while (activeLoads < MAX_PARALLEL && loadQueue.length) {
+    const id = loadQueue.shift();
+    if (detailCache[id]) { drainQueue(); continue; }
+    activeLoads++;
+    fetch(`/api/artwork_detail/${id}`)
+      .then(r => r.json())
+      .then(d => {
+        detailCache[id] = d;
+        const det  = document.getElementById(`det-${id}`);
+        const item = document.getElementById(`item-${id}`);
+        if (det && item) {
+          det.innerHTML = buildDetailHTML(id, d);
+          item.classList.add('open');
+        }
+      })
+      .catch(() => {})
+      .finally(() => { activeLoads--; drainQueue(); });
+  }
+}
+
+// Role → Odoo fields mapping
+const ROLE_FIELDS = {
+  'MAIN':      ['main_super_picture_hd','main_picture_hd','main_web_picture','main_hd_web_picture'],
+  'RECTO':     ['main_super_picture_hd','main_picture_hd'],
+  'BACK':      ['back_pictures'], 'VERSO': ['back_pictures'],
+  'FRAME':     ['frame_picture'],
+  'PERS':      ['perspective_url'], 'IN SITU': ['perspective_url'],
+  'SIGNATURE': ['signatures_pictures'],
+  'OTHER':     ['other_url'],
+  'MAIN A5':   ['main_a6_picture'],
+  'DETAIL':    ['detail_1_url','detail_2_url'],
+};
+
+/* ── Build detail HTML (returns string) ── */
+function buildDetailHTML(id_name, d) {
+  const disk   = d.disk_files  || [];
+  const odoo   = d.odoo_photos || {};
+  const fields = d.odoo_fields || [];
+
+  // Compute which roles have matching empty slots
+  const emptyFields = new Set(fields.filter(([f]) => !(odoo[f]||'').length > 4).map(([f])=>f));
+  const matchFor = {};  // disk index → array of slot labels
+  disk.forEach((f,i) => {
+    const targets = (ROLE_FIELDS[f.role]||[]).filter(fld => emptyFields.has(fld));
+    if (targets.length) matchFor[i] = targets;
+  });
+
+  // Slots that have a disk file available
+  const slotsWithMatch = new Set();
+  Object.values(matchFor).flat().forEach(f => slotsWithMatch.add(f));
+
+  const isTif = url => /\.tiff?$/i.test(url);
+  const isNotBrowser = url => /\.(tif|tiff|bmp|raw|cr2|nef)$/i.test(url);
+
+  const diskH = !disk.length
+    ? '<div style="color:#252525;font-size:.68rem">Aucun fichier disque</div>'
+    : disk.map((f,i) => {
+        const matches = matchFor[i] || [];
+        const matchBadge = matches.length
+          ? `<span class="match-hint">→ ${matches.length} slot${matches.length>1?'s':''} vide${matches.length>1?'s':''}</span>` : '';
+        const tifBadge = isTif(f.filename) ? `<span class="tif-hint">TIFF</span>` : '';
+        const bestBadge = f.best ? `<span class="best-pill">★ BEST</span>` : '';
+        const pxBadge = f.width ? `<span class="px-pill">${f.width}×${f.height}</span>` : '';
+        const nasBadge = f.nas ? `<span class="nas-pill">NAS</span>` : '';
+        const imgSrc = f.thumb;
+        return `
+      <div class="dcard${f.best?' is-best':''}" data-iid="${id_name}" data-fi="${i}" data-role="${f.role}"
+           onclick="pickFile('${id_name}',${i})">
+        <img src="${imgSrc}" loading="lazy">
+        <div class="dinfo">
+          <div class="dname">${f.filename}</div>
+          <div class="dmeta">
+            <span class="dbadge ${f.dir}">${f.dir}</span>
+            <span class="rbadge ${f.role.replace(/ /g,'-')}">${f.role}</span>
+            ${matchBadge}${tifBadge}${bestBadge}${pxBadge}${nasBadge}
+          </div>
+        </div>
+        <a class="dedit" href="/edit/${f.dir}/${encodeURIComponent(f.filename)}"
+           target="_blank" onclick="event.stopPropagation()">✏</a>
+      </div>`;
+      }).join('');
+
+  const odooH = fields.map(([field,label]) => {
+    const url   = odoo[field]||'';
+    const full  = url.length > 4;
+    const fname = full ? url.split('/').pop().split('?')[0] : '';
+    const hasMch = slotsWithMatch.has(field) && !full;
+    const urlBadge = full && isTif(url) ? `<span class="url-badge tiff">TIFF</span>`
+                   : full && isNotBrowser(url) ? `<span class="url-badge notbr">⚠ non-affichable</span>` : '';
+    return `
+      <div class="oslot ${full?'filled':'empty'}${hasMch?' has-match':''}" id="sl-${id_name}-${field}"
+           data-field="${field}" data-url="${url}" onclick="assignTo('${id_name}','${field}','${label}')">
+        ${full ? `<img class="othumb" src="${url}" loading="lazy"
+                      onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+        <div class="oempty" ${full?'style="display:none"':''}>∅</div>
+        <div class="oinfo">
+          <div class="olabel">${label} <span style="font-size:.58rem;font-weight:400;color:#3a3a3a;font-family:monospace">${field}</span>${urlBadge}</div>
+          <div class="ofname" id="fn-${id_name}-${field}">${fname||'—'}</div>
+          <div class="ohint">← assigner ici</div>
+        </div>
+        <button class="oupload" onclick="openSuModal('${id_name}','${field}','${label}');event.stopPropagation()" title="Uploader une photo">📤</button>
+        ${full ? `<button class="oclr" onclick="clearSlot('${id_name}','${field}','${label}');event.stopPropagation()" title="Vider">✕</button>` : ''}
+      </div>`;
+  }).join('');
+
+  // Trigger async 404 check after render
+  setTimeout(() => checkSlotUrls(id_name, d), 100);
+
+  const sub = [d.artist, d.odoo_id ? `Odoo #${d.odoo_id}` : 'Pas dans Odoo'].filter(Boolean).join(' · ');
+  const rs  = d.review_status || 'pending';
+  const rsBadge = rs === 'validated' ? `<span style="font-size:.62rem;background:#052e16;border:1px solid #166534;color:#4ade80;padding:1px 6px;border-radius:3px">✓ Validé</span>`
+              :   rs === 'skipped'   ? `<span style="font-size:.62rem;background:#2a210e;border:1px solid #92400e;color:#fbbf24;padding:1px 6px;border-radius:3px">⏭ Skip</span>`
+              :                        '';
+  return `
+    <div class="dactions">
+      <span style="font-size:.65rem;color:#333;flex:1">${sub} ${rsBadge}</span>
+      <button class="btn btn-green" id="btnPushFM-${id_name}" onclick="pushToFM('${id_name}',this)" title="Pousser tous les champs Odoo → FileMaker">→ FM</button>
+      <button class="btn btn-green" id="btnValidate-${id_name}" onclick="doValidate('${id_name}',this)" title="Marquer comme revue et passer à la suivante">✓ Valider</button>
+      <button class="btn" id="btnSkip-${id_name}" onclick="doSkip('${id_name}',this)" title="À revoir plus tard (crop visage, cheveux, détails manquants…)">⏭ Skip</button>
+      <button class="btn" onclick="window.open('/artwork/${id_name}','_blank')">🔗 Fiche</button>
+    </div>
+    <div>
+      <div class="ptitle">📁 Fichiers disque (${disk.length})</div>${diskH}
+    </div>
+    <div>
+      <div class="ptitle">🗃 Champs Odoo</div>${odooH}
+    </div>`;
+}
+
+/* ── Pick a disk file ── */
+function pickFile(id_name, fi) {
+  const d = detailCache[id_name];
+  const f = d && d.disk_files[fi];
+  if (!f) return;
+
+  // Toggle: same file = cancel
+  if (pickedFile && pickedFile.filename===f.filename && pickedFile.dir===f.dir) {
+    cancelPick(); return;
+  }
+  cancelPick();  // clear previous pick from any artwork
+
+  openId    = id_name;
+  curDetail = d;
+  curOdooId = d.odoo_id;
+  pickedFile = f;
+
+  // Highlight only this card
+  const item = document.getElementById(`item-${id_name}`);
+  if (item) item.querySelectorAll('.dcard').forEach((c,i) => c.classList.toggle('picked', i===fi));
+
+  // Highlight matching Odoo slots based on role
+  const matchFields = ROLE_FIELDS[f.role] || [];
+  if (item) item.querySelectorAll('.oslot').forEach(s => {
+    s.classList.toggle('pick-match', matchFields.includes(s.dataset.field));
+  });
+
+  document.getElementById('hbFile').textContent = `[${f.dir}] ${f.filename}`;
+  document.getElementById('hintBar').classList.add('show');
+  document.body.classList.add('picking');
+}
+
+/* ── Async 404 / non-browser check ── */
+async function checkSlotUrls(id_name, d) {
+  const fields = d.odoo_fields || [];
+  const odoo   = d.odoo_photos || {};
+  for (const [field] of fields) {
+    const url = odoo[field] || '';
+    if (url.length < 5) continue;
+    if (/\.tiff?$/i.test(url)) continue; // already badged
+    const slot = document.getElementById(`sl-${id_name}-${field}`);
+    if (!slot) continue;
+    try {
+      const r = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      if (!r.ok) {
+        const lbl = slot.querySelector('.olabel');
+        if (lbl && !lbl.querySelector('.url-badge')) {
+          lbl.insertAdjacentHTML('beforeend', `<span class="url-badge f404">404</span>`);
+        }
+        slot.classList.add('empty'); slot.classList.remove('filled');
+      }
+    } catch { /* network error or timeout — ignore */ }
+  }
+}
+
+function cancelPick() {
+  pickedFile = null;
+  document.querySelectorAll('.dcard').forEach(c => c.classList.remove('picked'));
+  document.querySelectorAll('.oslot').forEach(s => s.classList.remove('pick-match'));
+  document.getElementById('hintBar').classList.remove('show');
+  document.body.classList.remove('picking');
+}
+
+/* ── Assign ── */
+async function assignTo(id_name, field, label) {
+  // No picked file → offer to upload a new one directly
+  if (!pickedFile) {
+    openSuModal(id_name, field, label);
+    return;
+  }
+  const d = detailCache[id_name];
+  const odoo_id = d && d.odoo_id;
+  if (!odoo_id) return toast('Pas d\'ID Odoo', 'err');
+
+  const url = window.location.origin + pickedFile.url;
+  const f   = pickedFile;
+  cancelPick();
+  toast(`Assignation ${label}…`, 'inf');
+  try {
+    const r = await fetch('/api/assign', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ odoo_id, field, url, id_name })
+    });
+    const res = await r.json();
+    if (!res.ok) { toast('Erreur : '+(res.error||'?'), 'err'); return; }
+    const finalUrl = res.url || url;
+    toast(`✓ ${label} ← ${f.filename}`, 'ok');
+
+    // Update cache
+    if (d) d.odoo_photos[field] = finalUrl;
+
+    // Update slot visually
+    const slot = document.getElementById(`sl-${id_name}-${field}`);
+    if (slot) {
+      slot.classList.remove('empty'); slot.classList.add('filled');
+      let img = slot.querySelector('.othumb');
+      if (!img) {
+        img = document.createElement('img'); img.className = 'othumb';
+        const em = slot.querySelector('.oempty');
+        if (em) { em.style.display='none'; em.before(img); }
+        else slot.prepend(img);
+      }
+      img.src = url+'?t='+Date.now(); img.style.display='';
+      const fn = document.getElementById(`fn-${id_name}-${field}`);
+      if (fn) fn.textContent = f.filename;
+      if (!slot.querySelector('.oclr')) {
+        const cb = document.createElement('button');
+        cb.className='oclr'; cb.title='Vider'; cb.textContent='✕';
+        cb.onclick = e => { e.stopPropagation(); clearSlot(id_name,field,label); };
+        slot.appendChild(cb);
+      }
+    }
+  } catch(e) { toast('Erreur réseau', 'err'); }
+}
+
+async function clearSlot(id_name, field, label) {
+  const d = detailCache[id_name];
+  if (!d || !d.odoo_id || !confirm(`Vider "${label}" ?`)) return;
+  const r = await fetch('/api/assign', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ odoo_id: d.odoo_id, field, url:'', id_name })
+  });
+  const res = await r.json();
+  if (res.ok) {
+    toast(`✓ "${label}" vidé`, 'ok');
+    if (d) d.odoo_photos[field] = '';
+    delete detailCache[id_name];  // force reload on next view
+    const det = document.getElementById(`det-${id_name}`);
+    const item = document.getElementById(`item-${id_name}`);
+    if (det && item) {
+      const fresh = await fetch(`/api/artwork_detail/${id_name}`).then(r=>r.json());
+      detailCache[id_name] = fresh;
+      det.innerHTML = buildDetailHTML(id_name, fresh);
+    }
+  } else toast('Erreur : '+(res.error||'?'), 'err');
+}
+
+/* ── Validate / Skip (manual review workflow) ── */
+async function doValidate(id_name, btn) {
+  if (!btn) btn = document.getElementById('btnValidate-' + id_name);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
+  try {
+    const r   = await fetch(`/api/review/validate/${id_name}`, {method:'POST'});
+    const res = await r.json();
+    if (res.ok) {
+      toast('✓ Validé', 'ok');
+      if (detailCache[id_name]) detailCache[id_name].review_status = 'validated';
+      advanceToNext(id_name);
+    } else toast('Erreur : ' + (res.error || '?'), 'err');
+  } catch(e) { toast('Erreur réseau', 'err'); }
+  if (btn) { btn.disabled = false; btn.textContent = '✓ Valider'; }
+}
+
+async function doSkip(id_name, btn) {
+  if (!btn) btn = document.getElementById('btnSkip-' + id_name);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
+  try {
+    const r   = await fetch(`/api/review/skip/${id_name}`, {method:'POST'});
+    const res = await r.json();
+    if (res.ok) {
+      toast('⏭ Skippé — à revoir', 'inf');
+      if (detailCache[id_name]) detailCache[id_name].review_status = 'skipped';
+      advanceToNext(id_name);
+    } else toast('Erreur : ' + (res.error || '?'), 'err');
+  } catch(e) { toast('Erreur réseau', 'err'); }
+  if (btn) { btn.disabled = false; btn.textContent = '⏭ Skip'; }
+}
+
+function advanceToNext(id_name) {
+  const item = document.getElementById('item-' + id_name);
+  if (!item) return;
+  item.classList.add('reviewed');
+  const next = item.nextElementSibling;
+  if (next) {
+    next.scrollIntoView({behavior:'smooth', block:'center'});
+    const det = next.querySelector('.detail');
+    if (det && !det.classList.contains('open')) det.classList.add('open');
+  }
+}
+
+/* ── Push all Odoo fields → FM ── */
+async function pushToFM(id_name, btn) {
+  if (!btn) btn = document.getElementById('btnPushFM-' + id_name);
+  const orig = btn ? btn.textContent : '→ FM';
+  if (btn) { btn.disabled = true; btn.textContent = '→ FM…'; }
+  try {
+    const r = await fetch('/api/sync_check/push', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id_name: id_name, fields: [] }),  // [] = tous les champs
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const n = d.pushed || 0;
+      toast(n ? `✓ ${n} champ(s) poussé(s) vers FM` : 'Rien à pousser', n ? 'ok' : 'inf');
+      if (btn) { btn.textContent = `✓ ${n}`; btn.style.color = '#4ade80'; }
+      // Invalider le cache détail pour relire les valeurs fraîches
+      delete detailCache[id_name];
+      const fresh = await fetch(`/api/artwork_detail/${id_name}`).then(rr=>rr.json()).catch(()=>null);
+      if (fresh) {
+        detailCache[id_name] = fresh;
+        const det = document.getElementById(`det-${id_name}`);
+        if (det) det.innerHTML = buildDetailHTML(id_name, fresh);
+      }
+    } else {
+      toast('Erreur FM : ' + (d.error || '?'), 'err');
+      if (btn) { btn.textContent = '→ FM'; btn.disabled = false; }
+    }
+  } catch(e) {
+    toast('Erreur réseau', 'err');
+    if (btn) { btn.textContent = '→ FM'; btn.disabled = false; }
+  }
+  setTimeout(() => {
+    const b = document.getElementById('btnPushFM-' + id_name);
+    if (b) { b.textContent = '→ FM'; b.style.color = ''; b.disabled = false; }
+  }, 3000);
+}
+
+/* ── Keyboard ── */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='INPUT') return;
+  if (e.key==='Escape') cancelPick();
+  if ((e.key==='v'||e.key==='V') && openId) doValidate(openId);
+  if ((e.key==='s'||e.key==='S') && openId) doSkip(openId);
+});
+
+/* ── Toast ── */
+let tt;
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show '+type;
+  clearTimeout(tt); tt = setTimeout(()=>el.className='', 3000);
+}
+
+/* ── Upload-to-slot ── */
+let suState = { id_name: null, field: null, label: null, file: null };
+
+function openSuModal(id_name, field, label) {
+  suState = { id_name, field, label, file: null };
+  document.getElementById('suTarget').textContent = `→ Champ : ${label}`;
+  document.getElementById('suPreview').style.display = 'none';
+  document.getElementById('suDrop').style.display = 'block';
+  document.getElementById('suInput').value = '';
+  document.getElementById('btnSuSend').style.display = 'none';
+  document.getElementById('slotUploadModal').classList.add('show');
+}
+function closeSuModal() {
+  document.getElementById('slotUploadModal').classList.remove('show');
+}
+function onSuDrop(e) {
+  e.preventDefault();
+  document.getElementById('suDrop').classList.remove('over');
+  onSuPick(e.dataTransfer.files[0]);
+}
+function onSuPick(f) {
+  if (!f) return;
+  suState.file = f;
+  const reader = new FileReader();
+  reader.onload = ev => document.getElementById('suThumb').src = ev.target.result;
+  reader.readAsDataURL(f);
+  document.getElementById('suName').textContent = f.name;
+  document.getElementById('suPreview').style.display = 'flex';
+  document.getElementById('suDrop').style.display = 'none';
+  document.getElementById('btnSuSend').style.display = '';
+}
+async function doSlotUpload() {
+  if (!suState.file) return;
+  const btn = document.getElementById('btnSuSend');
+  btn.textContent = '⏳…'; btn.disabled = true;
+  const fd = new FormData();
+  fd.append('id_name', suState.id_name);
+  fd.append('field',   suState.field);
+  fd.append('file',    suState.file);
+  try {
+    const r = await fetch('/api/upload_to_field', { method:'POST', body: fd });
+    const d = await r.json();
+    if (!d.ok) { toast('Erreur : '+(d.error||'?'), 'err'); return; }
+
+    const msg = d.warning ? `✓ ${d.filename} (${d.warning})` : `✓ ${d.filename} → Odoo mis à jour`;
+    toast(msg, d.warning ? 'inf' : 'ok');
+    closeSuModal();
+
+    // Update slot visually
+    const url  = window.location.origin + d.url;
+    const slot = document.getElementById(`sl-${suState.id_name}-${suState.field}`);
+    if (slot) {
+      slot.classList.remove('empty'); slot.classList.add('filled');
+      let img = slot.querySelector('.othumb');
+      if (!img) {
+        img = document.createElement('img'); img.className = 'othumb';
+        const em = slot.querySelector('.oempty');
+        if (em) { em.style.display='none'; em.before(img); }
+        else slot.prepend(img);
+      }
+      img.src = url + '?t=' + Date.now(); img.style.display = '';
+      const fn = document.getElementById(`fn-${suState.id_name}-${suState.field}`);
+      if (fn) fn.textContent = d.filename;
+      if (!slot.querySelector('.oclr')) {
+        const cb = document.createElement('button');
+        cb.className = 'oclr'; cb.title = 'Vider'; cb.textContent = '✕';
+        cb.onclick = e => { e.stopPropagation(); clearSlot(suState.id_name, suState.field, suState.label); };
+        slot.appendChild(cb);
+      }
+    }
+    // Update cache
+    const cached = detailCache[suState.id_name];
+    if (cached) cached.odoo_photos[suState.field] = url;
+    // Refresh role index cache for this artwork
+    const aw = allAW.find(a => a.id_name === suState.id_name);
+    if (aw && !aw.dirs.includes('FM')) aw.dirs.push('FM');
+
+  } catch(e) { toast('Erreur réseau', 'err'); }
+  finally { btn.textContent = '⬆ Envoyer & Assigner'; btn.disabled = false; }
+}
+document.getElementById('slotUploadModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('slotUploadModal')) closeSuModal();
+});
+
+/* ── Upload ── */
+let uploadFiles = [];
+
+function openUpload() {
+  uploadFiles = [];
+  document.getElementById('uploadList').innerHTML = '';
+  document.getElementById('uploadInput').value = '';
+  document.getElementById('btnSend').style.display = 'none';
+  document.getElementById('uploadModal').classList.add('show');
+}
+function closeUpload() {
+  document.getElementById('uploadModal').classList.remove('show');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadDrop').classList.remove('over');
+  onFilePick(e.dataTransfer.files);
+}
+function onFilePick(files) {
+  uploadFiles = Array.from(files);
+  const list = document.getElementById('uploadList');
+  list.innerHTML = uploadFiles.map(f =>
+    `<div class="ufile">${f.name} <span>${(f.size/1024/1024).toFixed(1)} Mo</span></div>`
+  ).join('');
+  document.getElementById('btnSend').style.display = uploadFiles.length ? '' : 'none';
+}
+
+async function doUpload() {
+  if (!uploadFiles.length) return;
+  const dir = document.getElementById('uploadDir').value;
+  const fd  = new FormData();
+  fd.append('dir', dir);
+  uploadFiles.forEach(f => fd.append('files', f));
+
+  document.getElementById('btnSend').textContent = '⏳ Envoi…';
+  document.getElementById('btnSend').disabled = true;
+
+  try {
+    const r = await fetch('/api/upload', { method:'POST', body: fd });
+    const d = await r.json();
+    const list = document.getElementById('uploadList');
+    list.innerHTML = [
+      ...d.saved.map(n  => `<div class="ufile ok">✓ ${n}</div>`),
+      ...d.errors.map(e => `<div class="ufile err">✗ ${e}</div>`),
+    ].join('');
+    toast(`✓ ${d.saved.length} fichier(s) ajouté(s)`, 'ok');
+    uploadFiles = [];
+    document.getElementById('btnSend').style.display = 'none';
+  } catch(e) {
+    toast('Erreur réseau', 'err');
+  } finally {
+    document.getElementById('btnSend').textContent = '⬆ Envoyer';
+    document.getElementById('btnSend').disabled = false;
+  }
+}
+
+// Close on backdrop click
+document.getElementById('uploadModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('uploadModal')) closeUpload();
+});
+
+init();
+</script>
+</body>
+</html>

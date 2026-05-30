@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Journal d'activité — ReviewV2</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:system-ui,sans-serif; background:#0a0a0a; color:#e5e5e5;
+  display:flex; flex-direction:column; height:100vh; }
+header { display:flex; align-items:center; gap:12px; padding:8px 16px;
+  background:#111; border-bottom:1px solid #1a1a1a; flex-shrink:0; }
+header a { color:#555; text-decoration:none; font-size:.8rem; }
+header a:hover { color:#aaa; }
+header h1 { font-size:.9rem; font-weight:700; color:#ddd; flex:1; }
+#stats { font-size:.72rem; color:#333; }
+#filterBar { flex-shrink:0; display:flex; gap:8px; align-items:center;
+  padding:6px 16px; background:#0d0d0d; border-bottom:1px solid #111; }
+#filterBar input { padding:4px 8px; border-radius:4px; border:1px solid #1e1e1e;
+  background:#080808; color:#ccc; font-size:.72rem; width:160px; }
+#filterBar input:focus { outline:none; border-color:#3b82f6; }
+.fchip { padding:2px 8px; border-radius:10px; font-size:.62rem; cursor:pointer;
+  border:1px solid #1a1a1a; background:#0a0a0a; color:#333; user-select:none; }
+.fchip.on { background:#0c1e3a; border-color:#2563eb; color:#60a5fa; }
+#tableWrap { flex:1; overflow:auto; }
+table { width:100%; border-collapse:collapse; font-size:.72rem; }
+thead th { position:sticky; top:0; background:#111; padding:6px 10px;
+  text-align:left; font-weight:600; color:#555; border-bottom:1px solid #1a1a1a;
+  white-space:nowrap; }
+tbody tr:hover { background:#0d0d0d; }
+tbody tr.unsynced td:first-child { border-left:2px solid #d97706; }
+td { padding:5px 10px; border-bottom:1px solid #0f0f0f; vertical-align:middle; }
+.ts    { color:#2a2a2a; white-space:nowrap; }
+.user  { color:#60a5fa; font-weight:600; white-space:nowrap; }
+.act   { font-size:.62rem; padding:1px 6px; border-radius:8px; white-space:nowrap; }
+.act-assign        { background:#071c10; color:#4ade80; border:1px solid #16a34a; }
+.act-upload_assign { background:#071c10; color:#86efac; border:1px solid #166534; }
+.act-clear         { background:#2e0000; color:#f87171; border:1px solid #b91c1c; }
+.act-upload_odoo_fail { background:#1c0d00; color:#fbbf24; border:1px solid #b45309; }
+.act-other         { background:#141414; color:#555;    border:1px solid #222; }
+.id    { font-weight:700; color:#d0d0d0; }
+.field { font-size:.62rem; color:#555; }
+.fname { font-size:.62rem; color:#777; max-width:200px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sync  { font-size:.6rem; }
+.sync.ok  { color:#16a34a; }
+.sync.pnd { color:#d97706; }
+#loadMore { display:block; margin:12px auto; padding:6px 18px; border-radius:5px;
+  border:1px solid #1e1e1e; background:#111; color:#555; cursor:pointer; font-size:.72rem; }
+#loadMore:hover { color:#aaa; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← Accueil</a>
+  <h1>📋 Journal d'activité</h1>
+  <span id="stats">—</span>
+  <button onclick="load(true)" style="padding:3px 9px;border-radius:4px;border:1px solid #222;
+    background:#111;color:#555;cursor:pointer;font-size:.7rem">↻ Rafraîchir</button>
+</header>
+<div id="filterBar">
+  <input id="search" placeholder="Rechercher…" oninput="applyFilter()">
+  <button class="fchip" data-a="assign"        onclick="toggleA(this)">assign</button>
+  <button class="fchip" data-a="upload_assign" onclick="toggleA(this)">upload</button>
+  <button class="fchip" data-a="clear"         onclick="toggleA(this)">clear</button>
+  <button class="fchip" data-a="unsynced"      onclick="toggleA(this)">⏳ non-sync FM</button>
+</div>
+<div id="tableWrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th><th>Utilisateur</th><th>Action</th>
+        <th>Œuvre</th><th>Champ Odoo</th><th>Fichier</th><th>FM sync</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <button id="loadMore" onclick="loadMore()" style="display:none">Charger plus…</button>
+</div>
+
+<script>
+let allRows = [], offset = 0, total = 0;
+const LIMIT = 300;
+let filterActions = new Set();
+let filterSearch  = '';
+
+async function load(reset=false) {
+  if (reset) { allRows=[]; offset=0; }
+  const r = await fetch(`/api/activity_log?limit=${LIMIT}&offset=${offset}`);
+  const d = await r.json();
+  total   = d.total;
+  allRows = allRows.concat(d.rows);
+  offset += d.rows.length;
+  document.getElementById('stats').textContent =
+    `${total} entrée(s) — ${d.rows.filter(r=>!r.synced_fm).length} en attente FM`;
+  document.getElementById('loadMore').style.display =
+    offset < total ? 'block' : 'none';
+  applyFilter();
+}
+
+function loadMore() { load(false); }
+
+function toggleA(btn) {
+  const a = btn.dataset.a;
+  if (filterActions.has(a)) { filterActions.delete(a); btn.classList.remove('on'); }
+  else { filterActions.add(a); btn.classList.add('on'); }
+  applyFilter();
+}
+
+function applyFilter() {
+  filterSearch = document.getElementById('search').value.toLowerCase();
+  let rows = allRows;
+  if (filterActions.has('unsynced')) rows = rows.filter(r => !r.synced_fm);
+  const acts = [...filterActions].filter(a => a !== 'unsynced');
+  if (acts.length) rows = rows.filter(r => acts.includes(r.action));
+  if (filterSearch) rows = rows.filter(r =>
+    (r.id_name||'').toLowerCase().includes(filterSearch) ||
+    (r.user||'').toLowerCase().includes(filterSearch)   ||
+    (r.filename||'').toLowerCase().includes(filterSearch)||
+    (r.field||'').toLowerCase().includes(filterSearch)
+  );
+  render(rows);
+}
+
+function actCls(a) {
+  if (a==='assign') return 'act-assign';
+  if (a==='upload_assign') return 'act-upload_assign';
+  if (a==='clear') return 'act-clear';
+  if (a==='upload_odoo_fail') return 'act-upload_odoo_fail';
+  return 'act-other';
+}
+
+function render(rows) {
+  document.getElementById('tbody').innerHTML = rows.map(r => `
+    <tr class="${r.synced_fm?'':'unsynced'}">
+      <td class="ts">${r.ts||''}</td>
+      <td class="user">${r.user||'—'}</td>
+      <td><span class="act ${actCls(r.action)}">${r.action||'—'}</span></td>
+      <td class="id">${r.id_name||'—'}</td>
+      <td class="field">${r.field||'—'}</td>
+      <td class="fname" title="${r.filename||''}">${r.filename||'—'}</td>
+      <td class="sync ${r.synced_fm?'ok':'pnd'}">${r.synced_fm?'✓':''}</td>
+    </tr>`).join('');
+}
+
+load(true);
+</script>
+</body>
+</html>

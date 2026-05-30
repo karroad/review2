@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Éditeur — {{ filename }}</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5;
+       height: 100vh; display: flex; flex-direction: column; }
+
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a; flex-shrink: 0;
+}
+header a { color: #60a5fa; text-decoration: none; font-size: .85rem; }
+.fname { font-size: .95rem; font-weight: 700; color: #fff; flex: 1; }
+.meta  { font-size: .75rem; color: #666; }
+
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+.canvas-zone {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  background: #111; overflow: hidden; position: relative;
+}
+#mainImg { max-height: 100%; max-width: 100%; display: block; user-select: none; }
+
+/* ── Crop overlay: fixed, covers full viewport ── */
+#cropOverlay {
+  display: none; position: fixed; inset: 0; z-index: 50; cursor: crosshair;
+}
+#cropOverlay.active { display: block; }
+
+/* Dark vignette outside crop box via box-shadow on cropBox */
+#cropBox {
+  position: absolute;
+  border: 2px solid rgba(255,255,255,.9);
+  box-shadow: 0 0 0 9999px rgba(0,0,0,.55);
+  cursor: move;
+}
+/* Rule-of-thirds grid */
+#cropBox::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px) 0 0 / 33.33% 33.33%,
+    linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px) 0 0 / 33.33% 33.33%;
+}
+/* Corner + edge handles */
+.ch {
+  position: absolute; width: 10px; height: 10px;
+  background: #fff; border: 1px solid #3b82f6; border-radius: 1px;
+}
+.ch-tl { top:-5px; left:-5px;  cursor:nw-resize; }
+.ch-tr { top:-5px; right:-5px; cursor:ne-resize; }
+.ch-bl { bottom:-5px; left:-5px;  cursor:sw-resize; }
+.ch-br { bottom:-5px; right:-5px; cursor:se-resize; }
+.ch-t { top:-5px; left:calc(50% - 5px); cursor:n-resize; }
+.ch-b { bottom:-5px; left:calc(50% - 5px); cursor:s-resize; }
+.ch-l { top:calc(50% - 5px); left:-5px; cursor:w-resize; }
+.ch-r { top:calc(50% - 5px); right:-5px; cursor:e-resize; }
+
+/* ── Upload drop zone (canvas overlay) ── */
+#dropZone {
+  display: none; position: absolute; inset: 0; z-index: 40;
+  background: rgba(0,0,0,.7); align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px; pointer-events: none;
+}
+#dropZone.over { display: flex; }
+#dropZone span { font-size: 2rem; }
+#dropZone p { font-size: .9rem; color: #60a5fa; font-weight: 600; }
+
+/* Upload section */
+#uploadDrop {
+  border: 2px dashed #2a2a2a; border-radius: 6px; padding: 18px 12px;
+  text-align: center; cursor: pointer; transition: all .15s; margin-bottom: 8px;
+}
+#uploadDrop:hover, #uploadDrop.over { border-color: #3b82f6; background: #030d1a; }
+#uploadDrop p  { font-size: .75rem; color: #444; margin-bottom: 4px; }
+#uploadDrop em { font-size: .65rem; color: #2a2a2a; }
+#uploadPreview { display:none; align-items:center; gap:8px; margin-bottom:8px; }
+#uploadPreview img { width:52px; height:52px; object-fit:cover; border-radius:4px; }
+#uploadPreview .upname { font-size:.7rem; color:#aaa; flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#uploadPreview .upsize { font-size:.62rem; color:#555; flex-shrink:0; }
+#uploadBackupNote { font-size:.62rem; color:#555; margin-bottom:8px; display:none; }
+
+/* ── Straighten overlay ── */
+#straightenOverlay {
+  display: none; position: fixed; inset: 0; z-index: 50; cursor: crosshair;
+  background: rgba(0,0,0,.35);
+}
+#straightenOverlay.active { display: block; }
+#stLine {
+  position: absolute; pointer-events: none;
+  transform-origin: 0 0;
+  height: 2px; background: #f59e0b;
+  box-shadow: 0 0 4px #f59e0b, 0 0 8px rgba(245,158,11,.4);
+  display: none;
+}
+#stLine.visible { display: block; }
+#stAngle {
+  position: absolute; background: rgba(0,0,0,.75); color: #fbbf24;
+  padding: 3px 8px; border-radius: 4px; font-size: .8rem; font-weight: 700;
+  pointer-events: none; display: none; white-space: nowrap;
+}
+#stAngle.visible { display: block; }
+#stHint {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.8); color: #ccc; padding: 6px 14px; border-radius: 6px;
+  font-size: .8rem; pointer-events: none;
+}
+
+/* ── Controls panel ── */
+.controls {
+  width: 280px; flex-shrink: 0; background: #1a1a1a;
+  border-left: 1px solid #2a2a2a; overflow-y: auto;
+  display: flex; flex-direction: column;
+  position: relative; z-index: 60;  /* above crop overlay */
+}
+.section { border-bottom: 1px solid #222; padding: 14px 16px; }
+.section h3 {
+  font-size: .75rem; font-weight: 700; color: #888;
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px;
+}
+.rotate-btns { display: flex; gap: 6px; }
+.btn {
+  flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #333;
+  background: #222; color: #ccc; font-size: .8rem; cursor: pointer;
+  transition: background .15s; text-align: center;
+}
+.btn:hover { background: #333; color: #fff; }
+.btn-primary { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+.btn-primary:hover { background: #2563eb; }
+.btn-success { background: #16a34a; border-color: #16a34a; color: #fff; }
+.btn-success:hover { background: #15803d; }
+
+.crop-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.aspect-btn {
+  padding: 4px 10px; border-radius: 5px; border: 1px solid #333;
+  background: #222; color: #aaa; font-size: .72rem; cursor: pointer;
+}
+.aspect-btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+.slider-row { margin-bottom: 10px; }
+.slider-label { display: flex; justify-content: space-between; font-size: .75rem; color: #888; margin-bottom: 4px; }
+.slider-label span { color: #aaa; font-weight: 600; }
+input[type=range] { width: 100%; accent-color: #3b82f6; height: 4px; cursor: pointer; }
+
+.save-options { display: flex; flex-direction: column; gap: 6px; }
+.save-row { display: flex; gap: 6px; }
+.save-row .btn { flex: 1; padding: 8px 4px; font-size: .75rem; }
+
+#cropInfo { font-size: .7rem; color: #555; margin-top: 6px; min-height: 1em; }
+
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #1f2937; border: 1px solid #374151; color: #fff;
+  padding: 10px 20px; border-radius: 8px; font-size: .85rem;
+  opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 300;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; }
+#toast.ok  { border-color: #16a34a; background: #052e16; }
+#toast.err { border-color: #dc2626; background: #3b0000; }
+
+#spinner {
+  display: none; position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,.6); align-items: center; justify-content: center;
+  font-size: 1.1rem; color: #fff;
+}
+#spinner.show { display: flex; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="javascript:history.back()">← Retour</a>
+  <div class="fname">{{ filename }}</div>
+  <div class="meta">{{ dir_key }} · {{ width }}×{{ height }}px · {{ size_mb }} Mo</div>
+</header>
+
+<div class="layout">
+  <div class="canvas-zone" id="canvasZone">
+    <img id="mainImg" src="{{ photo_url }}" alt="{{ filename }}" draggable="false">
+    <div id="dropZone">
+      <span>📂</span>
+      <p>Dépose la nouvelle version ici</p>
+    </div>
+  </div>
+
+  <div class="controls">
+
+    <div class="section">
+      <h3>📤 Nouvelle version</h3>
+      <div id="uploadDrop" onclick="document.getElementById('uploadInput').click()"
+           ondragover="event.preventDefault();this.classList.add('over')"
+           ondragleave="this.classList.remove('over')"
+           ondrop="onUploadDrop(event)">
+        <p>Glisse ou clique pour choisir un fichier</p>
+        <em>JPG · PNG · TIFF</em>
+      </div>
+      <input type="file" id="uploadInput" accept=".jpg,.jpeg,.png,.tif,.tiff"
+             style="display:none" onchange="onUploadPick(this.files[0])">
+      <div id="uploadPreview">
+        <img id="upThumb">
+        <div>
+          <div class="upname" id="upName"></div>
+          <div class="upsize" id="upSize"></div>
+        </div>
+        <button class="btn" style="padding:2px 7px;font-size:.65rem" onclick="clearUpload()">✕</button>
+      </div>
+      <div id="uploadBackupNote">⚠ L'ancienne version sera sauvegardée dans <code>_backups/</code></div>
+      <button class="btn btn-success" id="btnUpload" onclick="doUploadReplace()"
+              style="width:100%;display:none">💾 Enregistrer nouvelle version</button>
+    </div>
+
+    <div class="section">
+      <h3>↻ Rotation</h3>
+      <div class="rotate-btns">
+        <button class="btn" onclick="rotate(-90)">↺ -90°</button>
+        <button class="btn" onclick="rotate(90)">↻ +90°</button>
+        <button class="btn" onclick="rotate(180)">↕ 180°</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>📐 Redresser</h3>
+      <p style="font-size:.72rem;color:#555;margin-bottom:10px">
+        Trace une ligne sur un bord horizontal ou vertical — l'angle est calculé automatiquement.</p>
+      <div class="rotate-btns">
+        <button class="btn btn-primary" id="btnStraighten" onclick="enableStraighten()">✏ Tracer</button>
+        <button class="btn" id="btnApplySt" onclick="applyStraighten()" style="display:none">Appliquer</button>
+        <button class="btn" id="btnCancelSt" onclick="cancelStraighten()" style="display:none">Annuler</button>
+      </div>
+      <div id="stInfo" style="font-size:.7rem;color:#555;margin-top:6px;min-height:1em"></div>
+    </div>
+
+    <div class="section">
+      <h3>✂ Recadrage</h3>
+      <div class="crop-btns">
+        <button class="aspect-btn active" id="asp-free" onclick="setAspect(0)">Libre</button>
+        <button class="aspect-btn" id="asp-1"  onclick="setAspect(1)">1:1</button>
+        <button class="aspect-btn" id="asp-4"  onclick="setAspect(4/3)">4:3</button>
+        <button class="aspect-btn" id="asp-3"  onclick="setAspect(3/2)">3:2</button>
+        <button class="aspect-btn" id="asp-16" onclick="setAspect(16/9)">16:9</button>
+      </div>
+      <div class="rotate-btns">
+        <button class="btn btn-primary" onclick="enableCrop()">Activer</button>
+        <button class="btn" onclick="applyCrop()">Appliquer</button>
+        <button class="btn" onclick="cancelCrop()">Annuler</button>
+      </div>
+      <div id="cropInfo"></div>
+    </div>
+
+    <div class="section">
+      <h3>🎨 Ajustements</h3>
+      <div class="slider-row">
+        <div class="slider-label">Luminosité <span id="brVal">0</span></div>
+        <input type="range" id="brightness" min="-100" max="100" value="0" oninput="updateAdj()">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label">Contraste <span id="ctVal">0</span></div>
+        <input type="range" id="contrast" min="-100" max="100" value="0" oninput="updateAdj()">
+      </div>
+      <div class="slider-row">
+        <div class="slider-label">Saturation <span id="satVal">0</span></div>
+        <input type="range" id="saturation" min="-100" max="100" value="0" oninput="updateAdj()">
+      </div>
+      <button class="btn" style="width:100%;margin-top:4px" onclick="resetAdjustments()">Réinitialiser</button>
+    </div>
+
+    <div class="section">
+      <h3>📐 Générer versions</h3>
+      <p style="font-size:.72rem;color:#666;margin-bottom:10px">
+        Génère FM (3307px) et/ou A5 (1980px) avec les ajustements appliqués.</p>
+      <div class="save-options">
+        <div class="save-row">
+          <button class="btn btn-success" onclick="saveAs('fm')">→ FM</button>
+          <button class="btn btn-success" onclick="saveAs('a5')">→ A5</button>
+          <button class="btn btn-success" onclick="saveAs('both')">→ FM+A5</button>
+        </div>
+        <button class="btn" onclick="saveAs('replace')" style="width:100%">💾 Remplacer l'original</button>
+      </div>
+    </div>
+
+    <div class="section" id="tiffSection"
+         style="{{ '' if filename.lower().endswith(('.tif','.tiff')) else 'display:none' }}">
+      <h3>🔄 TIFF → JPG</h3>
+      <p style="font-size:.72rem;color:#666;margin-bottom:10px">
+        Convertit ce TIFF en JPG dans le même répertoire.</p>
+      <button class="btn btn-primary" style="width:100%" onclick="saveAs('replace')">
+        Convertir & Enregistrer</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Straighten overlay -->
+<div id="straightenOverlay">
+  <div id="stLine"></div>
+  <div id="stAngle"></div>
+  <div id="stHint">Clique et glisse le long d'un bord horizontal ou vertical</div>
+</div>
+
+<!-- Crop overlay — position:fixed, covers full viewport -->
+<div id="cropOverlay">
+  <div id="cropBox">
+    <div class="ch ch-tl" data-h="tl"></div>
+    <div class="ch ch-tr" data-h="tr"></div>
+    <div class="ch ch-bl" data-h="bl"></div>
+    <div class="ch ch-br" data-h="br"></div>
+    <div class="ch ch-t"  data-h="t"></div>
+    <div class="ch ch-b"  data-h="b"></div>
+    <div class="ch ch-l"  data-h="l"></div>
+    <div class="ch ch-r"  data-h="r"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="spinner">⏳ Traitement en cours…</div>
+
+<script>
+const DIR      = '{{ dir_key }}';
+const FILENAME = '{{ filename }}';
+const NAT_W    = {{ width }};
+const NAT_H    = {{ height }};
+
+let pendingRotations = 0;
+let pendingStraighten = 0;   // fine angle in degrees
+let cropData   = null;
+let aspectRatio = 0;   // 0 = free
+let cropActive  = false;
+let dragState   = null;
+// box in VIEWPORT px: {x, y, w, h}
+let box = { x: 0, y: 0, w: 0, h: 0 };
+
+const overlay = document.getElementById('cropOverlay');
+const cropBox = document.getElementById('cropBox');
+
+/* ─── Rotation ─── */
+function rotate(deg) {
+  pendingRotations = (pendingRotations + deg + 360) % 360;
+  applyImgTransform();
+  toast(`Rotation ${pendingRotations}°`, 'ok');
+}
+
+/* ─── Straighten ─── */
+const stOverlay = document.getElementById('straightenOverlay');
+const stLine    = document.getElementById('stLine');
+const stAngle   = document.getElementById('stAngle');
+let stDrag = null;
+let stPendingAngle = null;
+
+function enableStraighten() {
+  cancelCrop();
+  stPendingAngle = null;
+  stLine.classList.remove('visible');
+  stAngle.classList.remove('visible');
+  document.getElementById('stInfo').textContent = '';
+  stOverlay.classList.add('active');
+  document.getElementById('btnStraighten').style.display = 'none';
+  document.getElementById('btnApplySt').style.display = '';
+  document.getElementById('btnCancelSt').style.display = '';
+}
+
+function cancelStraighten() {
+  stOverlay.classList.remove('active');
+  stLine.classList.remove('visible');
+  stAngle.classList.remove('visible');
+  stDrag = null; stPendingAngle = null;
+  document.getElementById('btnStraighten').style.display = '';
+  document.getElementById('btnApplySt').style.display = 'none';
+  document.getElementById('btnCancelSt').style.display = 'none';
+  document.getElementById('stInfo').textContent = '';
+  // Remove preview
+  applyImgTransform();
+}
+
+function applyStraighten() {
+  if (stPendingAngle === null) return toast('Trace une ligne d\'abord', 'err');
+  pendingStraighten = stPendingAngle;
+  cancelStraighten();
+  applyImgTransform();
+  const sign = pendingStraighten > 0 ? '+' : '';
+  document.getElementById('stInfo').textContent = '';
+  toast(`Redressement ${sign}${pendingStraighten.toFixed(1)}° prêt`, 'ok');
+}
+
+stOverlay.addEventListener('mousedown', e => {
+  e.preventDefault();
+  stDrag = { sx: e.clientX, sy: e.clientY };
+  stLine.classList.remove('visible');
+  stAngle.classList.remove('visible');
+});
+
+stOverlay.addEventListener('mousemove', e => {
+  if (!stDrag) return;
+  const dx = e.clientX - stDrag.sx;
+  const dy = e.clientY - stDrag.sy;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 5) return;
+
+  // Draw line
+  stLine.style.left   = stDrag.sx + 'px';
+  stLine.style.top    = stDrag.sy + 'px';
+  stLine.style.width  = len + 'px';
+  const angleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+  stLine.style.transform = `rotate(${angleDeg}deg)`;
+  stLine.classList.add('visible');
+
+  // The correction needed = -angleDeg (to make this line horizontal)
+  // But if line is more vertical than horizontal, correct to vertical instead
+  let correction;
+  const absAngle = Math.abs(angleDeg);
+  if (absAngle <= 45 || absAngle >= 135) {
+    // Nearly horizontal line — correct to 0°
+    correction = absAngle <= 45 ? -angleDeg : (angleDeg > 0 ? -(angleDeg - 180) : -(angleDeg + 180));
+  } else {
+    // Nearly vertical line — correct to ±90°
+    correction = angleDeg > 0 ? -(angleDeg - 90) : -(angleDeg + 90);
+  }
+  // Clamp to ±15°
+  correction = Math.max(-15, Math.min(15, correction));
+  stPendingAngle = parseFloat(correction.toFixed(2));
+
+  // Show angle label near endpoint
+  stAngle.style.left = (e.clientX + 10) + 'px';
+  stAngle.style.top  = (e.clientY - 10) + 'px';
+  const sign = stPendingAngle >= 0 ? '+' : '';
+  stAngle.textContent = `${sign}${stPendingAngle.toFixed(1)}°`;
+  stAngle.classList.add('visible');
+});
+
+stOverlay.addEventListener('mouseup', () => { stDrag = null; });
+
+/* ─── Combined CSS transform preview ─── */
+function applyImgTransform() {
+  const br  = parseInt(document.getElementById('brightness').value);
+  const ct  = parseInt(document.getElementById('contrast').value);
+  const sat = parseInt(document.getElementById('saturation').value);
+  const img = document.getElementById('mainImg');
+  const totalRot = pendingRotations + pendingStraighten;
+  img.style.transform = totalRot ? `rotate(${totalRot}deg)` : '';
+  img.style.filter = `brightness(${1+br/100}) contrast(${1+ct/100}) saturate(${1+sat/100})`;
+}
+
+/* ─── Live preview (CSS filter) ─── */
+function updateAdj() {
+  const fmt = n => n > 0 ? '+'+n : n;
+  document.getElementById('brVal').textContent  = fmt(parseInt(document.getElementById('brightness').value));
+  document.getElementById('ctVal').textContent  = fmt(parseInt(document.getElementById('contrast').value));
+  document.getElementById('satVal').textContent = fmt(parseInt(document.getElementById('saturation').value));
+  applyImgTransform();
+}
+
+function resetAdjustments() {
+  ['brightness','contrast','saturation'].forEach(id =>
+    document.getElementById(id).value = 0);
+  document.getElementById('mainImg').style.filter = '';
+  ['brVal','ctVal','satVal'].forEach(id =>
+    document.getElementById(id).textContent = '0');
+}
+
+/* ─── Aspect ratio ─── */
+function setAspect(r) {
+  aspectRatio = r;
+  document.querySelectorAll('.aspect-btn').forEach(b => b.classList.remove('active'));
+  const map = { 0:'asp-free', 1:'asp-1' };
+  let id = map[r];
+  if (!id) {
+    if (Math.abs(r - 4/3) < .01) id = 'asp-4';
+    else if (Math.abs(r - 3/2) < .01) id = 'asp-3';
+    else id = 'asp-16';
+  }
+  document.getElementById(id).classList.add('active');
+  if (cropActive) initBox();
+}
+
+/* ─── Crop: viewport-absolute positioning ─── */
+function imgRect() { return document.getElementById('mainImg').getBoundingClientRect(); }
+
+function initBox() {
+  const ir = imgRect();
+  // Start at 80% centered — leaves visible dark zone to draw a new box
+  const margin = 0.10;
+  if (aspectRatio) {
+    const w = ir.width * (1 - margin * 2);
+    const h = w / aspectRatio;
+    const clampedH = Math.min(h, ir.height * (1 - margin * 2));
+    box = { x: ir.left + ir.width * margin,
+            y: ir.top  + (ir.height - clampedH) / 2,
+            w, h: clampedH };
+  } else {
+    box = { x: ir.left + ir.width  * margin,
+            y: ir.top  + ir.height * margin,
+            w: ir.width  * (1 - margin * 2),
+            h: ir.height * (1 - margin * 2) };
+  }
+  renderBox();
+}
+
+function clampBox(b) {
+  const ir = imgRect();
+  const MIN = 20;
+  b.w = Math.max(MIN, b.w);
+  b.h = Math.max(MIN, b.h);
+  if (b.x < ir.left)             b.x = ir.left;
+  if (b.y < ir.top)              b.y = ir.top;
+  if (b.x + b.w > ir.right)  {
+    if (b.w > ir.width) b.w = ir.width;
+    b.x = ir.right - b.w;
+  }
+  if (b.y + b.h > ir.bottom) {
+    if (b.h > ir.height) b.h = ir.height;
+    b.y = ir.bottom - b.h;
+  }
+  return b;
+}
+
+function renderBox() {
+  cropBox.style.left   = box.x + 'px';
+  cropBox.style.top    = box.y + 'px';
+  cropBox.style.width  = box.w + 'px';
+  cropBox.style.height = box.h + 'px';
+
+  const ir    = imgRect();
+  const pxW   = Math.round(box.w / ir.width  * NAT_W);
+  const pxH   = Math.round(box.h / ir.height * NAT_H);
+  document.getElementById('cropInfo').textContent =
+    cropActive ? `${pxW} × ${pxH} px` : '';
+}
+
+function enableCrop() {
+  cancelCrop();
+  cropActive = true;
+  overlay.classList.add('active');
+  initBox();
+  toast('Recadrage actif — glisse/redimensionne, puis Appliquer', 'ok');
+}
+
+function cancelCrop() {
+  cropActive = false;
+  overlay.classList.remove('active');
+  dragState = null;
+  document.getElementById('cropInfo').textContent = '';
+}
+
+function applyCrop() {
+  if (!cropActive) return toast('Active le recadrage d\'abord', 'err');
+  const ir = imgRect();
+  cropData = {
+    left:   Math.max(0, (box.x - ir.left) / ir.width  * 100),
+    top:    Math.max(0, (box.y - ir.top)  / ir.height * 100),
+    right:  Math.min(100, (box.x - ir.left + box.w) / ir.width  * 100),
+    bottom: Math.min(100, (box.y - ir.top  + box.h) / ir.height * 100),
+  };
+  const pxW = Math.round((cropData.right - cropData.left)  / 100 * NAT_W);
+  const pxH = Math.round((cropData.bottom - cropData.top) / 100 * NAT_H);
+  cancelCrop();
+  toast(`Recadrage prêt : ${pxW} × ${pxH} px`, 'ok');
+}
+
+/* ─── Drag on crop box = move ─── */
+cropBox.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('ch')) return;
+  e.preventDefault(); e.stopPropagation();
+  dragState = { type: 'move', sx: e.clientX, sy: e.clientY, b0: { ...box } };
+});
+
+/* ─── Drag on handles = resize ─── */
+cropBox.querySelectorAll('.ch').forEach(h => {
+  h.addEventListener('mousedown', e => {
+    e.preventDefault(); e.stopPropagation();
+    dragState = { type: 'resize', handle: h.dataset.h,
+                  sx: e.clientX, sy: e.clientY, b0: { ...box } };
+  });
+});
+
+/* ─── Drag on overlay background = draw new box ─── */
+overlay.addEventListener('mousedown', e => {
+  if (e.target !== overlay) return;
+  e.preventDefault();
+  dragState = { type: 'draw',
+                sx: e.clientX, sy: e.clientY,
+                b0: { ...box } };
+});
+
+document.addEventListener('mousemove', e => {
+  if (!dragState) return;
+  const dx = e.clientX - dragState.sx;
+  const dy = e.clientY - dragState.sy;
+  let b = { ...dragState.b0 };
+
+  if (dragState.type === 'move') {
+    b.x += dx; b.y += dy;
+
+  } else if (dragState.type === 'draw') {
+    b.x = Math.min(dragState.sx, e.clientX);
+    b.y = Math.min(dragState.sy, e.clientY);
+    b.w = Math.abs(e.clientX - dragState.sx);
+    b.h = Math.abs(e.clientY - dragState.sy);
+    if (aspectRatio && b.w > 1) b.h = b.w / aspectRatio;
+
+  } else {  // resize
+    const h = dragState.handle;
+    if (h.includes('r')) { b.w  = dragState.b0.w + dx; }
+    if (h.includes('l')) { b.x  = dragState.b0.x + dx; b.w = dragState.b0.w - dx; }
+    if (h.includes('b')) { b.h  = dragState.b0.h + dy; }
+    if (h.includes('t')) { b.y  = dragState.b0.y + dy; b.h = dragState.b0.h - dy; }
+    if (aspectRatio && (h === 'br' || h === 'tr' || h === 'bl' || h === 'tl')) {
+      b.h = b.w / aspectRatio;
+      if (h.includes('t')) b.y = dragState.b0.y + dragState.b0.h - b.h;
+    }
+  }
+
+  box = clampBox(b);
+  renderBox();
+});
+
+document.addEventListener('mouseup', () => { dragState = null; });
+
+/* ─── Build ops ─── */
+function getOps() {
+  const br  = parseInt(document.getElementById('brightness').value);
+  const ct  = parseInt(document.getElementById('contrast').value);
+  const sat = parseInt(document.getElementById('saturation').value);
+  const ops = {};
+  if (pendingRotations) ops.rotate     = pendingRotations;
+  if (pendingStraighten) ops.straighten = pendingStraighten;
+  if (cropData)         ops.crop       = cropData;
+  if (br  !== 0)        ops.brightness = 1 + br  / 100;
+  if (ct  !== 0)        ops.contrast   = 1 + ct  / 100;
+  if (sat !== 0)        ops.saturation = 1 + sat / 100;
+  return ops;
+}
+
+async function saveAs(mode) {
+  cancelCrop();
+  const ops = getOps();
+  if (!Object.keys(ops).length && mode === 'replace') {
+    toast('Aucune modification à enregistrer', 'err'); return;
+  }
+  document.getElementById('spinner').classList.add('show');
+  try {
+    const r = await fetch('/api/process', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: DIR, filename: FILENAME, ops, save_as: mode })
+    });
+    const d = await r.json();
+    document.getElementById('spinner').classList.remove('show');
+    if (d.ok) {
+      toast('✓ Enregistré : ' + d.saved.join(', '), 'ok');
+      const img = document.getElementById('mainImg');
+      img.src = '/photo/' + DIR + '/' + FILENAME + '?t=' + Date.now();
+      img.style.transform = ''; img.style.filter = '';
+      pendingRotations = 0; pendingStraighten = 0; cropData = null; resetAdjustments();
+    } else {
+      toast('Erreur : ' + d.error, 'err');
+    }
+  } catch(e) {
+    document.getElementById('spinner').classList.remove('show');
+    toast('Erreur réseau', 'err');
+  }
+}
+
+/* ─── Upload new version ─── */
+let uploadFile = null;
+
+// Canvas drag-over visual
+const canvasZone = document.getElementById('canvasZone');
+canvasZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('over');
+});
+canvasZone.addEventListener('dragleave', e => {
+  if (!canvasZone.contains(e.relatedTarget))
+    document.getElementById('dropZone').classList.remove('over');
+});
+canvasZone.addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) onUploadPick(f);
+});
+
+function onUploadDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploadDrop').classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) onUploadPick(f);
+}
+
+function onUploadPick(f) {
+  if (!f) return;
+  uploadFile = f;
+  // Preview
+  const reader = new FileReader();
+  reader.onload = ev => document.getElementById('upThumb').src = ev.target.result;
+  reader.readAsDataURL(f);
+  document.getElementById('upName').textContent = f.name;
+  document.getElementById('upSize').textContent = (f.size/1024/1024).toFixed(1) + ' Mo';
+  document.getElementById('uploadPreview').style.display = 'flex';
+  document.getElementById('uploadBackupNote').style.display = 'block';
+  document.getElementById('btnUpload').style.display = 'block';
+  document.getElementById('uploadDrop').style.display = 'none';
+}
+
+function clearUpload() {
+  uploadFile = null;
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('uploadBackupNote').style.display = 'none';
+  document.getElementById('btnUpload').style.display = 'none';
+  document.getElementById('uploadDrop').style.display = 'block';
+  document.getElementById('uploadInput').value = '';
+}
+
+async function doUploadReplace() {
+  if (!uploadFile) return;
+  const btn = document.getElementById('btnUpload');
+  btn.textContent = '⏳ Envoi…'; btn.disabled = true;
+  document.getElementById('spinner').classList.add('show');
+
+  const fd = new FormData();
+  fd.append('dir', DIR);
+  fd.append('filename', FILENAME);
+  fd.append('file', uploadFile);
+
+  try {
+    const r = await fetch('/api/upload_replace', { method: 'POST', body: fd });
+    const d = await r.json();
+    document.getElementById('spinner').classList.remove('show');
+    if (d.ok) {
+      toast('✓ Fichier remplacé' + (d.backup ? ` · backup: ${d.backup}` : ''), 'ok');
+      // Reload image
+      const img = document.getElementById('mainImg');
+      img.src = '/photo/' + DIR + '/' + FILENAME + '?t=' + Date.now();
+      img.style.transform = ''; img.style.filter = '';
+      pendingRotations = 0; pendingStraighten = 0; cropData = null; resetAdjustments();
+      clearUpload();
+    } else {
+      toast('Erreur : ' + d.error, 'err');
+    }
+  } catch(e) {
+    document.getElementById('spinner').classList.remove('show');
+    toast('Erreur réseau', 'err');
+  } finally {
+    btn.textContent = '💾 Enregistrer nouvelle version'; btn.disabled = false;
+  }
+}
+
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+</script>
+</body>
+</html>

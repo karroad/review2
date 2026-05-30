@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReviewV2 — Connexion</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5;
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+}
+.box {
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px;
+  padding: 40px 36px; width: 100%; max-width: 360px;
+}
+h1 { font-size: 1.2rem; color: #fff; margin-bottom: 6px; }
+.sub { font-size: .8rem; color: #666; margin-bottom: 28px; }
+label { display: block; font-size: .78rem; color: #888; margin-bottom: 5px; }
+input {
+  width: 100%; padding: 10px 12px; border-radius: 7px;
+  border: 1px solid #333; background: #111; color: #eee;
+  font-size: .9rem; margin-bottom: 16px;
+}
+input:focus { outline: none; border-color: #3b82f6; }
+.otp-hint { font-size: .72rem; color: #555; margin-top: -12px; margin-bottom: 16px; }
+button[type=submit] {
+  width: 100%; padding: 11px; border-radius: 7px; border: none;
+  background: #3b82f6; color: #fff; font-size: .95rem; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+button[type=submit]:hover { background: #2563eb; }
+.error {
+  background: #3b0000; border: 1px solid #7f1d1d; color: #f87171;
+  border-radius: 7px; padding: 10px 14px; font-size: .82rem; margin-bottom: 18px;
+}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>📸 ReviewV2</h1>
+  <p class="sub">Connexion requise</p>
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="post">
+    <label>Identifiant</label>
+    <input type="text" name="login" autocomplete="username" autofocus required>
+    <label>Mot de passe</label>
+    <input type="password" name="password" autocomplete="current-password" required>
+    <label>Code OTP</label>
+    <input type="text" name="otp" inputmode="numeric" pattern="[0-9]{6}"
+           maxlength="6" placeholder="123456" autocomplete="one-time-code" required>
+    <p class="otp-hint">Code à 6 chiffres depuis votre application d'authentification</p>
+    <button type="submit">Se connecter</button>
+  </form>
+</div>
+</body>
+</html>

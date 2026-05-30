@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit FM — ReviewV2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; height: 100vh; display: flex; flex-direction: column; }
+
+header {
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  padding: 10px 20px; background: #141414; border-bottom: 1px solid #222;
+}
+header a { color: #60a5fa; text-decoration: none; font-size: .85rem; }
+header a:hover { text-decoration: underline; }
+header h1 { font-size: .95rem; font-weight: 700; color: #fff; }
+.h-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn { padding: 6px 14px; border-radius: 6px; font-size: .78rem; font-weight: 600; cursor: pointer; border: none; transition: background .15s; white-space: nowrap; }
+.btn-green  { background: #14532d; color: #4ade80; }
+.btn-green:hover  { background: #166534; }
+.btn-orange { background: #78350f; color: #fb923c; }
+.btn-orange:hover { background: #92400e; }
+.btn-blue   { background: #1e3a5f; color: #60a5fa; }
+.btn-blue:hover   { background: #1d4ed8; color: #fff; }
+.btn-dark   { background: #1a1a1a; color: #aaa; border: 1px solid #333; }
+.btn-dark:hover { background: #222; color: #fff; }
+
+/* Stats */
+.stats-bar { flex-shrink: 0; display: flex; gap: 0; border-bottom: 1px solid #1a1a1a; background: #111; overflow-x: auto; }
+.stat-item { padding: 8px 16px; border-right: 1px solid #1a1a1a; min-width: 100px; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+.stat-item:hover { background: #181818; }
+.stat-item.active-warn { background: #1f1a0a; border-bottom: 2px solid #f59e0b; }
+.stat-item.active-fld  { background: #1a0f0f; border-bottom: 2px solid #ef4444; }
+.stat-lbl { font-size: .62rem; color: #555; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.stat-val  { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 2px 0; }
+.stat-pct  { font-size: .65rem; color: #555; }
+.prog { height: 3px; background: #222; border-radius: 2px; margin-top: 5px; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width .5s; }
+.c-green  { background: #22c55e; }
+.c-yellow { background: #f59e0b; }
+.c-red    { background: #ef4444; }
+
+/* Filters */
+.filters { flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: #0f0f0f; border-bottom: 1px solid #1a1a1a; flex-wrap: wrap; }
+.search-wrap { position: relative; }
+.search-wrap input { padding: 5px 9px 5px 28px; border-radius: 6px; background: #1a1a1a; border: 1px solid #2a2a2a; color: #eee; font-size: .78rem; width: 200px; }
+.search-wrap input:focus { outline: none; border-color: #3b82f6; }
+.search-ico { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #555; font-size: .75rem; }
+select { padding: 5px 9px; border-radius: 6px; background: #1a1a1a; border: 1px solid #2a2a2a; color: #aaa; font-size: .78rem; cursor: pointer; }
+select:focus { outline: none; border-color: #3b82f6; }
+.chip { padding: 4px 11px; border-radius: 12px; font-size: .7rem; font-weight: 600; cursor: pointer; border: 1px solid #2a2a2a; background: #1a1a1a; color: #666; transition: all .15s; white-space: nowrap; }
+.chip:hover { border-color: #555; color: #bbb; }
+.chip.on { background: #f59e0b22; border-color: #f59e0b; color: #f59e0b; }
+.chip.on-red { background: #ef444422; border-color: #ef4444; color: #f87171; }
+.chip.on-green  { background: #14532d44; border-color: #22c55e; color: #4ade80; }
+.chip.on-blue   { background: #1e3a5f44; border-color: #60a5fa; color: #93c5fd; }
+.chip.on-purple { background: #3b076444; border-color: #a78bfa; color: #c084fc; }
+.status-chips { display: flex; gap: 4px; align-items: center; }
+.quality-wrap { display: flex; align-items: center; gap: 6px; font-size: .72rem; color: #666; border: 1px solid #2a2a2a; border-radius: 6px; padding: 3px 10px; background: #1a1a1a; }
+.quality-wrap input[type=range] { width: 100px; cursor: pointer; accent-color: #f87171; }
+.quality-wrap span { color: #f87171; font-weight: 700; min-width: 60px; }
+.filter-info { font-size: .7rem; color: #444; margin-left: auto; }
+
+/* Table */
+.table-wrap { flex: 1; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .73rem; }
+thead { position: sticky; top: 0; z-index: 10; }
+th { background: #141414; padding: 7px 10px; text-align: left; color: #555; font-weight: 700; letter-spacing: .04em; font-size: .62rem; border-bottom: 1px solid #222; white-space: nowrap; cursor: pointer; user-select: none; }
+th:hover { color: #aaa; }
+th.sorted { color: #60a5fa; }
+td { padding: 5px 10px; border-bottom: 1px solid #111; vertical-align: middle; white-space: nowrap; }
+tr:hover td { background: #0f0f0f; }
+tr.has-pending td { background: #110d00; }
+tr.has-pending:hover td { background: #1a1400; }
+tr.low-quality td { background: #110000; }
+tr.low-quality:hover td { background: #1a0000; }
+
+.id-link { color: #60a5fa; text-decoration: none; font-weight: 600; }
+.id-link:hover { text-decoration: underline; }
+.artist-cell { color: #ccc; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+.title-cell  { color: #666; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.gallery-cell { color: #a78bfa; max-width: 120px; overflow: hidden; text-overflow: ellipsis; font-size: .7rem; }
+.location-cell { color: #555; font-size: .68rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+
+.status-badge { padding: 1px 7px; border-radius: 10px; font-size: .6rem; font-weight: 700; }
+.s-in_stock   { background: #14532d; color: #4ade80; }
+.s-in_transit { background: #1e3a5f; color: #93c5fd; }
+.s-sold       { background: #3b0764; color: #d8b4fe; }
+.s-           { background: #1a1a1a; color: #444; }
+
+.dots { display: flex; gap: 3px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; transition: transform .1s; }
+.dot:hover { transform: scale(1.5); }
+.dot.on  { }
+.dot.off { background: #222; }
+
+/* Compare field grid */
+.cmp-grid { display: flex; flex-direction: column; gap: 2px; }
+.cmp-row  { display: flex; gap: 2px; align-items: center; }
+.cmp-lbl  { font-size: .55rem; color: #444; width: 26px; flex-shrink: 0; font-family: monospace; }
+.cmp-dot  { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; cursor: help; }
+.cmp-ok       { background: #22c55e; }
+.cmp-odoo_only{ background: #f59e0b; }
+.cmp-fm_only  { background: #60a5fa; }
+.cmp-both     { background: #f87171; }
+.cmp-missing  { background: #222; }
+
+.btn-push { padding: 2px 7px; border-radius: 4px; font-size: .65rem; font-weight: 700;
+  background: #78350f; color: #fb923c; border: 1px solid #92400e; cursor: pointer; white-space: nowrap; }
+.btn-push:hover { background: #92400e; }
+.btn-push-fm { background: #1e3a5f; color: #60a5fa; border-color: #1d4ed8; }
+.btn-push-fm:hover { background: #1d4ed8; color: #fff; }
+
+.px-cell  { color: #7dd3fc; font-variant-numeric: tabular-nums; }
+.sz-cell  { color: #fbbf24; font-variant-numeric: tabular-nums; }
+.px-bad   { color: #f87171; font-weight: 700; }
+.pending-badge { background: #78350f; color: #fbbf24; padding: 1px 7px; border-radius: 10px; font-size: .62rem; font-weight: 700; }
+.sync-ok { color: #333; font-size: .65rem; }
+
+/* Pagination */
+.pagination { flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 7px; background: #0f0f0f; border-top: 1px solid #1a1a1a; }
+.pg-btn { padding: 3px 9px; border-radius: 5px; font-size: .72rem; border: 1px solid #222; background: #1a1a1a; color: #666; cursor: pointer; }
+.pg-btn:hover { background: #222; color: #fff; }
+.pg-btn.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+.pg-btn:disabled { opacity: .3; cursor: default; }
+.pg-info { font-size: .7rem; color: #444; padding: 0 6px; }
+
+/* Modals */
+.modal { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.85); align-items: center; justify-content: center; }
+.modal.show { display: flex; }
+.modal-box { background: #161616; border: 1px solid #2a2a2a; border-radius: 10px; padding: 24px 28px; width: 420px; max-width: 95vw; }
+.modal-box h3 { font-size: .9rem; color: #ddd; margin-bottom: 6px; }
+.modal-box p  { font-size: .75rem; color: #666; margin-bottom: 16px; line-height: 1.6; }
+.prog-bg { background: #222; border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 6px; }
+.prog-bar { height: 100%; border-radius: 6px; transition: width .5s; background: #3b82f6; }
+.prog-lbl { font-size: .7rem; color: #777; margin-bottom: 14px; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+.empty { padding: 60px; text-align: center; color: #333; font-size: .9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← Retour</a>
+  <h1>🔍 Audit FM / Odoo</h1>
+  <div class="h-right">
+    <button class="btn btn-blue"   onclick="openGallerySync()">🏛 Sync galeries</button>
+    <button class="btn btn-blue"   onclick="openScanModal()">📐 Scanner dimensions</button>
+    <button class="btn btn-dark"   onclick="exportCSV('full')">⬇ Export CSV</button>
+    <button class="btn btn-orange" onclick="exportCSV('quality')">📧 Rapport qualité</button>
+  </div>
+</header>
+
+<!-- Stats champs FM -->
+<div class="stats-bar" id="fieldStatsBar">
+  <div class="stat-item" id="stat-all" onclick="clearFilters()" title="Tout afficher">
+    <div class="stat-lbl">Total</div>
+    <div class="stat-val" id="sv-total">—</div>
+    <div class="stat-pct" id="sp-total"></div>
+    <div class="prog"><div class="prog-fill c-green" style="width:100%"></div></div>
+  </div>
+  <div class="stat-item" id="stat-pending" onclick="togglePending()" title="Modifications non encore envoyées à FM">
+    <div class="stat-lbl">⚠ Sync en attente</div>
+    <div class="stat-val" id="sv-pending">—</div>
+    <div class="stat-pct">à envoyer à FM</div>
+    <div class="prog"><div class="prog-fill c-yellow" id="pb-pending" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-MAINFM"    onclick="filterMissing('MAINFM')"    title="Cliquer = voir ceux sans MAINFM">
+    <div class="stat-lbl">MAINFM</div>
+    <div class="stat-val" id="fsv-MAINFM">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-MAINFM" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-BACK300"   onclick="filterMissing('BACK300')"   title="Cliquer = voir ceux sans BACK300">
+    <div class="stat-lbl">BACK300</div>
+    <div class="stat-val" id="fsv-BACK300">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-BACK300" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-PERS300"   onclick="filterMissing('PERS300')"   title="Cliquer = voir ceux sans PERS300">
+    <div class="stat-lbl">PERS300</div>
+    <div class="stat-val" id="fsv-PERS300">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-PERS300" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-FRAME300"  onclick="filterMissing('FRAME300')"  title="Cliquer = voir ceux sans FRAME300">
+    <div class="stat-lbl">FRAME300</div>
+    <div class="stat-val" id="fsv-FRAME300">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-FRAME300" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-DET300"    onclick="filterMissing('DET300')"    title="Cliquer = voir ceux sans DET300">
+    <div class="stat-lbl">DET300</div>
+    <div class="stat-val" id="fsv-DET300">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-DET300" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-INSITU300" onclick="filterMissing('INSITU300')" title="Cliquer = voir ceux sans INSITU300">
+    <div class="stat-lbl">INSITU300</div>
+    <div class="stat-val" id="fsv-INSITU300">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-INSITU300" style="width:0%"></div></div>
+  </div>
+  <div class="stat-item" id="fstat-UrlMainA5" onclick="filterMissing('UrlMainA5')" title="Cliquer = voir ceux sans A5">
+    <div class="stat-lbl">A5</div>
+    <div class="stat-val" id="fsv-UrlMainA5">—</div>
+    <div class="prog"><div class="prog-fill" id="fpb-UrlMainA5" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+  <div class="search-wrap">
+    <span class="search-ico">🔍</span>
+    <input type="text" id="searchInput" placeholder="ID, artiste, titre, galerie…" oninput="schedSearch()">
+  </div>
+
+  <select id="gallerySelect" onchange="setGallery(this.value)">
+    <option value="">Toutes les galeries</option>
+  </select>
+
+  <div class="status-chips">
+    <div class="chip" id="chip-in_stock"   onclick="toggleStatus('in stock')">● In stock</div>
+    <div class="chip" id="chip-on_order"   onclick="toggleStatus('on order')">● On order</div>
+    <div class="chip" id="chip-in_transit" onclick="toggleStatus('in transit')">● In transit</div>
+  </div>
+  <div class="chip" id="chip-pending" onclick="togglePending()">⚠ Sync en attente</div>
+  <div class="chip" id="chip-diff-odoo" onclick="toggleDiff('odoo_only')" title="Odoo rempli mais FM vide">🟡 Odoo→FM manquant</div>
+  <div class="chip" id="chip-diff-fm"   onclick="toggleDiff('fm_only')"   title="FM rempli mais Odoo vide">🔵 FM→Odoo manquant</div>
+  <div class="chip" id="chip-diff-any"  onclick="toggleDiff('any')"        title="Toute différence">🔴 Désalignés</div>
+
+  <div class="quality-wrap" title="Filtrer les photos dont la largeur est inférieure au seuil">
+    📐 Qualité &lt;
+    <input type="range" id="qualityRange" min="0" max="5000" step="100" value="0" oninput="updateQuality(this.value)">
+    <span id="qualityLabel">Tout</span>
+  </div>
+
+  <span class="filter-info" id="filterInfo"></span>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th onclick="setSort('id_asc')">ID <span id="arr-id_asc"></span></th>
+        <th>Artiste</th>
+        <th>Titre</th>
+        <th>Statut</th>
+        <th onclick="setSort('gallery_asc')">Galerie <span id="arr-gallery_asc"></span></th>
+        <th>Localisation</th>
+        <th title="FM vs Odoo — vert=ok, orange=Odoo seul, bleu=FM seul, rouge=conflit">FM / Odoo</th>
+        <th onclick="setSort('width_asc')" title="Largeur MAINFM local (petit = mauvaise qualité)">📐 px <span id="arr-width_asc"></span></th>
+        <th onclick="setSort('filesize_asc')" title="Poids fichier">💾 Ko <span id="arr-filesize_asc"></span></th>
+        <th onclick="setSort('pending_desc')">Sync <span id="arr-pending_desc"></span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="emptyMsg" style="display:none">Aucun résultat</div>
+</div>
+
+<!-- Pagination -->
+<div class="pagination" id="paginationBar"></div>
+
+<!-- Modal: scan dimensions -->
+<div class="modal" id="scanModal">
+  <div class="modal-box">
+    <h3>📐 Scanner les dimensions</h3>
+    <p>Analyse chaque fichier local pour extraire sa taille en pixels et son poids. Nécessaire pour trier par qualité.</p>
+    <div class="prog-bg"><div class="prog-bar" id="scanProg" style="width:0%"></div></div>
+    <div class="prog-lbl" id="scanLbl">Prêt</div>
+    <div class="modal-btns">
+      <button class="btn btn-dark" onclick="closeScanModal()">Fermer</button>
+      <button class="btn btn-blue" id="btnStartScan" onclick="startScan()">▶ Lancer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: sync galeries -->
+<div class="modal" id="gallerySyncModal">
+  <div class="modal-box">
+    <h3>🏛 Synchronisation des galeries</h3>
+    <p>Récupère la galerie et la localisation de chaque artwork depuis OperaCRM. Nécessaire pour trier et exporter par galerie.</p>
+    <div class="prog-bg"><div class="prog-bar" id="galleryProg" style="width:0%"></div></div>
+    <div class="prog-lbl" id="galleryLbl">Prêt</div>
+    <div class="modal-btns">
+      <button class="btn btn-dark" onclick="closeGallerySync()">Fermer</button>
+      <button class="btn btn-green" id="btnStartGallery" onclick="startGallerySync()">▶ Lancer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FIELDS = ['MAINFM','BACK300','PERS300','FRAME300','DET300','INSITU300','UrlMainA5'];
+const FCOLORS = {
+  MAINFM:'#22c55e', BACK300:'#60a5fa', PERS300:'#a78bfa',
+  FRAME300:'#f472b6', DET300:'#fb923c', INSITU300:'#34d399', UrlMainA5:'#fbbf24'
+};
+// FM fields that have an Odoo counterpart, in display order
+const COMPARE_FIELDS = ['MAINFM','MAIN_HD','UrlMainA5','BACK300','FRAME300','PERS300','Signature','OTHER300','DET300'];
+const COMPARE_LABELS = {MAINFM:'Main',MAIN_HD:'HD',UrlMainA5:'A6',BACK300:'Back',FRAME300:'Cdr',PERS300:'Pers',Signature:'Sign',OTHER300:'Atr',DET300:'Dét'};
+let hasOdooCache = false;
+const QUALITY_THRESHOLD = 1000; // px en dessous = rouge
+
+let state = { page:1, q:'', missing:'', pending:false, gallery:'', max_px:0, sort:'pending_desc', statuses:new Set(), diff:'' };
+let searchTimer = null;
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function load() {
+  const p = new URLSearchParams({
+    page: state.page, limit: 100,
+    q: state.q, missing: state.missing,
+    pending: state.pending ? '1' : '',
+    gallery: state.gallery,
+    max_px: state.max_px,
+    sort: state.sort,
+    statuses: [...state.statuses].join(','),
+    diff: state.diff,
+  });
+  const r = await fetch('/api/fm_audit?' + p);
+  const d = await r.json();
+  state.total = d.total;
+  state.pages = d.pages;
+  hasOdooCache = !!d.has_odoo_cache;
+  renderStats(d.stats);
+  populateGalleries(d.galleries, d.gallery_synced);
+  renderRows(d.rows, d.total);
+  renderPagination();
+  updateUI();
+  const fi = document.getElementById('filterInfo');
+  fi.textContent = (state.q||state.missing||state.pending||state.gallery||state.max_px)
+    ? `${d.total.toLocaleString()} résultat(s) filtré(s)` : '';
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function renderStats(s) {
+  document.getElementById('sv-total').textContent   = s.total.toLocaleString();
+  document.getElementById('sv-pending').textContent = s.pending.toLocaleString();
+  document.getElementById('pb-pending').style.width = Math.min(s.pending/s.total*500,100)+'%';
+  FIELDS.forEach(f => {
+    const val = s.fields[f] || 0;
+    const pct = s.total > 0 ? Math.round(val/s.total*100) : 0;
+    const el = document.getElementById('fsv-'+f);
+    if (el) el.textContent = pct+'%';
+    const pb = document.getElementById('fpb-'+f);
+    if (pb) { pb.style.width=pct+'%'; pb.className='prog-fill '+(pct>80?'c-green':pct>40?'c-yellow':'c-red'); }
+  });
+}
+
+// ── Gallery dropdown ──────────────────────────────────────────────────────────
+function populateGalleries(galleries, synced) {
+  const sel = document.getElementById('gallerySelect');
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">Toutes les galeries${synced ? ' ('+synced.toLocaleString()+')' : ' — non synchro'}</option>`;
+  galleries.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = g;
+    if (g === cur) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Rows ──────────────────────────────────────────────────────────────────────
+function renderRows(rows, total) {
+  const tbody = document.getElementById('tbody');
+  document.getElementById('emptyMsg').style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = rows.map(r => {
+    const isLowQ = r.width > 0 && r.width < QUALITY_THRESHOLD;
+    const px   = r.width && r.height ? `<span class="${isLowQ?'px-bad':'px-cell'}">${r.width}×${r.height}</span>` : '<span style="color:#333">—</span>';
+    const ko   = r.filesize ? `<span class="sz-cell">${(r.filesize/1024).toFixed(0)}</span>` : '<span style="color:#333">—</span>';
+    const sync = r.pending  ? `<span class="pending-badge">⚠ ${r.pending}</span>` : `<span class="sync-ok">✓</span>`;
+    const rowClass = r.pending ? 'has-pending' : (isLowQ ? 'low-quality' : '');
+
+    // Dots FM : cliquables si vide (push depuis Odoo), tooltip si rempli
+    const fmDots = FIELDS.map(f => {
+      const filled = r.fields[f];
+      if (filled) {
+        return `<span class="dot on" style="background:${FCOLORS[f]}" title="${f} : rempli"></span>`;
+      } else {
+        return `<span class="dot off dot-action" title="Pousser ${f} depuis Odoo → FM"
+          onclick="pushField('${r.id_name}','${f}',this)" style="cursor:pointer"></span>`;
+      }
+    }).join('');
+
+    // Grille de comparaison Odoo si cache dispo
+    let cmpHtml = '';
+    if (r.compare && hasOdooCache) {
+      COMPARE_FIELDS.forEach((ff, i) => {
+        const c = r.compare[ff];
+        if (!c) return;
+        const tip = `${c.label} — FM: ${c.fm?c.fm.slice(-50):'vide'} | Odoo: ${c.odoo?c.odoo.slice(-50):'vide'}`;
+        const clickable = (c.st==='odoo_only') ? `onclick="pushField('${r.id_name}','${ff}',this)"style="cursor:pointer"` : '';
+        cmpHtml += `<span class="cmp-dot cmp-${c.st}" title="${tip}" ${clickable}></span>`;
+      });
+    }
+
+    const fieldsCell = cmpHtml
+      ? `<div class="dots" style="gap:4px">${cmpHtml}</div><div style="font-size:.5rem;color:#2a2a2a;margin-top:1px;letter-spacing:.02em">${COMPARE_FIELDS.map(f=>COMPARE_LABELS[f]).join(' ')}</div>`
+      : `<div class="dots">${fmDots}</div>`;
+
+    // Actions : toujours visible
+    const actions = `<button class="btn-push" onclick="pushToFM('${r.id_name}',this)" title="Pousser tous les champs Odoo → FM">Odoo→FM</button>`;
+
+    return `<tr class="${rowClass}">
+      <td><a class="id-link" href="/artwork/${r.id_name}">${r.id_name}</a></td>
+      <td class="artist-cell" title="${r.artist}">${r.artist}</td>
+      <td class="title-cell"  title="${r.title}">${r.title}</td>
+      <td><span class="status-badge s-${r.status}">${r.status||'—'}</span></td>
+      <td class="gallery-cell"  title="${r.gallery}">${r.gallery||'—'}</td>
+      <td class="location-cell" title="${r.location}">${r.location||'—'}</td>
+      <td>${fieldsCell}</td>
+      <td>${px}</td><td>${ko}</td><td>${sync}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Pousser tous les champs Odoo → FM pour une ligne
+async function pushToFM(id_name, btn) {
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await fetch('/api/sync_check/push', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id_name, fields:[]}),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      btn.textContent = `✓ ${d.pushed}`;
+      btn.style.background = '#14532d'; btn.style.color = '#4ade80';
+      setTimeout(() => load(), 1500);
+    } else {
+      btn.textContent = d.error || 'Err'; btn.disabled = false;
+    }
+  } catch(e) { btn.textContent = 'Err'; btn.disabled = false; }
+}
+
+// Pousser un seul champ FM (depuis le dot cliquable)
+async function pushField(id_name, fm_field, dot) {
+  const ODOO_FIELDS = {MAINFM:'main_super_picture_hd',MAIN_HD:'main_picture_hd',UrlMainA5:'main_a6_picture',
+    BACK300:'back_pictures',FRAME300:'frame_picture',PERS300:'perspective_url',
+    Signature:'signatures_pictures',OTHER300:'other_url',DET300:'detail_1_url'};
+  const odooField = ODOO_FIELDS[fm_field];
+  if (!odooField) return;
+  dot.style.background = '#f59e0b'; dot.style.cursor = 'default';
+  try {
+    const res = await fetch('/api/sync_check/push', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id_name, fields:[odooField]}),
+    });
+    const d = await res.json();
+    if (d.ok && d.pushed > 0) {
+      dot.style.background = FCOLORS[fm_field] || '#22c55e';
+      dot.classList.remove('dot-action'); dot.onclick = null;
+      dot.title = `${fm_field} : poussé depuis Odoo ✓`;
+    } else {
+      dot.style.background = '#f87171';
+      dot.title = d.error || 'Odoo vide ou erreur';
+      setTimeout(() => { dot.style.background=''; dot.classList.add('dot-action'); }, 2000);
+    }
+  } catch(e) { dot.style.background = '#f87171'; }
+}
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+function renderPagination() {
+  const bar = document.getElementById('paginationBar');
+  if (state.pages <= 1) { bar.innerHTML=''; return; }
+  let html = `<button class="pg-btn" onclick="goPage(${state.page-1})" ${state.page<=1?'disabled':''}>◀</button>`;
+  const lo=Math.max(1,state.page-3), hi=Math.min(state.pages,state.page+3);
+  if (lo>1) html+=`<button class="pg-btn" onclick="goPage(1)">1</button><span class="pg-info">…</span>`;
+  for(let p=lo;p<=hi;p++) html+=`<button class="pg-btn ${p===state.page?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  if(hi<state.pages) html+=`<span class="pg-info">…</span><button class="pg-btn" onclick="goPage(${state.pages})">${state.pages}</button>`;
+  html+=`<button class="pg-btn" onclick="goPage(${state.page+1})" ${state.page>=state.pages?'disabled':''}>▶</button>`;
+  html+=`<span class="pg-info">${((state.page-1)*100+1).toLocaleString()}–${Math.min(state.page*100,state.total).toLocaleString()} / ${state.total.toLocaleString()}</span>`;
+  bar.innerHTML=html;
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function goPage(p) { state.page=p; load(); window.scrollTo(0,0); }
+function schedSearch() { clearTimeout(searchTimer); searchTimer=setTimeout(()=>{ state.q=document.getElementById('searchInput').value; state.page=1; load(); },350); }
+function setGallery(v) { state.gallery=v; state.page=1; load(); }
+function filterMissing(f) {
+  state.missing = state.missing===f ? '' : f; state.page=1;
+  document.querySelectorAll('[id^=fstat-]').forEach(el=>el.classList.remove('active-fld'));
+  if(state.missing) document.getElementById('fstat-'+f)?.classList.add('active-fld');
+  load();
+}
+function togglePending() { state.pending=!state.pending; state.page=1; load(); }
+function toggleStatus(s) {
+  if (state.statuses.has(s)) state.statuses.delete(s);
+  else state.statuses.add(s);
+  state.page=1; load();
+}
+function toggleDiff(mode) {
+  state.diff = state.diff === mode ? '' : mode;
+  state.page = 1; load();
+}
+function clearFilters() {
+  state.missing=''; state.pending=false; state.q=''; state.gallery=''; state.max_px=0; state.statuses=new Set(); state.diff=''; state.page=1;
+  document.getElementById('searchInput').value='';
+  document.getElementById('gallerySelect').value='';
+  document.getElementById('qualityRange').value=0;
+  document.getElementById('qualityLabel').textContent='Tout';
+  document.querySelectorAll('[id^=fstat-]').forEach(el=>el.classList.remove('active-fld'));
+  load();
+}
+function updateQuality(val) {
+  state.max_px = parseInt(val); state.page=1;
+  document.getElementById('qualityLabel').textContent = val>0 ? val+'px' : 'Tout';
+  clearTimeout(searchTimer); searchTimer=setTimeout(load, 400);
+}
+function setSort(s) {
+  state.sort=s; state.page=1;
+  document.querySelectorAll('[id^=arr-]').forEach(el=>el.textContent='');
+  const el=document.getElementById('arr-'+s); if(el) el.textContent='▼';
+  document.querySelectorAll('th').forEach(t=>t.classList.remove('sorted'));
+  load();
+}
+function updateUI() {
+  document.getElementById('chip-pending').className='chip'+(state.pending?' on-red':'');
+  document.getElementById('stat-pending').classList.toggle('active-warn', state.pending);
+  const STATUS_COLORS = {'in stock':'on-green','on order':'on-blue','in transit':'on-purple'};
+  const STATUS_IDS = {'in stock':'chip-in_stock','on order':'chip-on_order','in transit':'chip-in_transit'};
+  Object.entries(STATUS_IDS).forEach(([s,id]) => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'chip' + (state.statuses.has(s) ? ' '+STATUS_COLORS[s] : '');
+  });
+  document.getElementById('chip-diff-odoo').className = 'chip' + (state.diff==='odoo_only'?' on':'');
+  document.getElementById('chip-diff-fm').className   = 'chip' + (state.diff==='fm_only'  ?' on':'');
+  document.getElementById('chip-diff-any').className  = 'chip' + (state.diff==='any'      ?' on-red':'');
+}
+function exportCSV(mode) {
+  const p = new URLSearchParams({q:state.q, missing:state.missing, pending:state.pending?'1':'',
+    gallery:state.gallery, max_px:state.max_px, statuses:[...state.statuses].join(','), mode});
+  window.open('/api/fm_audit/export?'+p);
+}
+
+// ── Scan modal ────────────────────────────────────────────────────────────────
+let scanPoll=null;
+function openScanModal() { document.getElementById('scanModal').classList.add('show'); checkScanProgress(); }
+function closeScanModal(){ document.getElementById('scanModal').classList.remove('show'); }
+async function startScan() {
+  document.getElementById('btnStartScan').disabled=true;
+  await fetch('/api/scan_file_meta',{method:'POST'});
+  scanPoll=setInterval(checkScanProgress,1500);
+}
+async function checkScanProgress() {
+  const d=await(await fetch('/api/scan_meta_progress')).json();
+  const pct=d.total>0?Math.round(d.done/d.total*100):0;
+  document.getElementById('scanProg').style.width=pct+'%';
+  document.getElementById('scanLbl').textContent=d.running
+    ?`${d.done.toLocaleString()} / ${d.total.toLocaleString()} fichiers (${pct}%)`
+    :d.cached>0?`✓ ${d.cached.toLocaleString()} fichiers indexés`:'Prêt';
+  document.getElementById('btnStartScan').disabled=d.running;
+  if(!d.running&&scanPoll){clearInterval(scanPoll);scanPoll=null;load();}
+}
+
+// ── Gallery sync modal ────────────────────────────────────────────────────────
+let galleryPoll=null;
+function openGallerySync() { document.getElementById('gallerySyncModal').classList.add('show'); checkGalleryProgress(); }
+function closeGallerySync(){ document.getElementById('gallerySyncModal').classList.remove('show'); }
+async function startGallerySync() {
+  document.getElementById('btnStartGallery').disabled=true;
+  await fetch('/api/sync_galleries',{method:'POST'});
+  galleryPoll=setInterval(checkGalleryProgress,2000);
+}
+async function checkGalleryProgress() {
+  const d=await(await fetch('/api/sync_galleries_progress')).json();
+  const pct=d.total>0?Math.round(d.done/d.total*100):0;
+  document.getElementById('galleryProg').style.width=pct+'%';
+  document.getElementById('galleryLbl').textContent=d.running
+    ?`${d.done.toLocaleString()} / ${d.total.toLocaleString()} artworks (${pct}%)`
+    :d.done>0?`✓ ${d.done.toLocaleString()} galeries synchronisées`:'Prêt';
+  document.getElementById('btnStartGallery').disabled=d.running;
+  if(!d.running&&galleryPoll){clearInterval(galleryPoll);galleryPoll=null;load();}
+}
+
+load();
+</script>
+</body>
+</html>

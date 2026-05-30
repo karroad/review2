@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReviewV2 — Photo Manager</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5; }
+
+header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; background: #141414; border-bottom: 2px solid #222;
+}
+.h-logo { font-size: 1rem; font-weight: 800; color: #fff;
+  white-space: nowrap; letter-spacing: -.01em; flex-shrink: 0; }
+.h-logo span { color: #3b82f6; }
+header form { display: flex; gap: 6px; flex: 1; max-width: 380px; }
+header form input {
+  flex: 1; padding: 6px 12px; border-radius: 6px;
+  border: 1px solid #2a2a2a; background: #0d0d0d; color: #ddd; font-size: .85rem;
+}
+header form input:focus { outline: none; border-color: #3b82f6; }
+header form button {
+  padding: 6px 14px; border-radius: 6px; border: none;
+  background: #3b82f6; color: #fff; cursor: pointer; font-size: .82rem;
+  white-space: nowrap;
+}
+.h-nav { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+.h-btn {
+  padding: 5px 12px; border-radius: 6px; font-size: .78rem;
+  border: 1px solid #2a2a2a; background: #1a1a1a; color: #888;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.h-btn:hover { background: #222; color: #fff; border-color: #444; }
+.h-btn.primary { background: #0c1e3a; border-color: #2563eb; color: #60a5fa; }
+.h-btn.primary:hover { background: #1e3a5f; }
+.h-sep { width: 1px; height: 20px; background: #222; flex-shrink: 0; }
+
+.stats { padding: 10px 24px; font-size: .8rem; color: #666; background: #141414; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1px; padding: 1px;
+}
+.card {
+  background: #1a1a1a; padding: 14px 16px;
+  cursor: pointer; transition: background .15s;
+  border-bottom: 1px solid #222;
+}
+.card:hover { background: #222; }
+.card-id { font-size: .75rem; color: #3b82f6; font-weight: 600; letter-spacing: .02em; }
+.card-title { font-size: .85rem; color: #ddd; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-artist { font-size: .75rem; color: #888; margin-top: 2px; }
+.card-status {
+  display: inline-block; margin-top: 6px; padding: 2px 8px;
+  border-radius: 10px; font-size: .7rem; font-weight: 600;
+}
+.status-stock { background: #14532d; color: #4ade80; }
+.status-order { background: #1e3a5f; color: #60a5fa; }
+.status-sold  { background: #3b0000; color: #f87171; }
+.status-other { background: #292524; color: #a8a29e; }
+
+.card-dirs { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.dir-pill {
+  font-size: .6rem; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+}
+.dir-FM   { background: #14532d; color: #4ade80; }
+.dir-A5   { background: #451a03; color: #fbbf24; }
+.dir-NP   { background: #3b0764; color: #c084fc; }
+.dir-300  { background: #0c4a6e; color: #67e8f9; }
+.dir-TIFF { background: #4c0519; color: #fda4af; }
+.file-count { font-size: .6rem; color: #555; }
+.no-disk { font-size: .65rem; color: #7f1d1d; }
+
+.pagination {
+  display: flex; align-items: center; gap: 8px;
+  padding: 16px 24px; justify-content: center;
+}
+.pagination a {
+  padding: 5px 12px; border-radius: 5px; background: #222;
+  color: #aaa; text-decoration: none; font-size: .85rem;
+}
+.pagination a:hover { background: #333; color: #fff; }
+.pagination .active { background: #3b82f6; color: #fff; }
+.pagination .dots { color: #555; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-logo">Review<span>V2</span></div>
+  <form method="get">
+    <input name="q" value="{{ q }}" placeholder="ID, titre, artiste…">
+    <button type="submit">Chercher</button>
+  </form>
+  <nav class="h-nav">
+    <a href="/rapid" class="h-btn primary">⚡ Mode Express</a>
+    <div class="h-sep"></div>
+    <a href="/howto"   class="h-btn">? Aide</a>
+    <a href="/log"     class="h-btn">📋 Journal</a>
+    <a href="/fm_sync"    class="h-btn">🗄 Sync FM</a>
+    <a href="/fm_audit"  class="h-btn">🔍 Audit FM</a>
+    <a href="/sync-check" class="h-btn">⚖ Aligner</a>
+    <div class="h-sep"></div>
+    <button class="h-btn primary" onclick="openRefreshAll()" title="Rafraîchit le cache FM et le cache Odoo en une fois">⟳ Tout rafraîchir</button>
+    <button class="h-btn" onclick="syncCRM()">↻ Sync Odoo</button>
+    <button class="h-btn" onclick="scanDisk()">🔍 Scan</button>
+  </nav>
+</header>
+
+<div class="stats">
+  {{ total }} œuvres{% if q %} pour « {{ q }} »{% endif %}
+</div>
+
+<div class="grid">
+{% for aw in artworks %}
+  <a class="card" href="/artwork/{{ aw.id_name }}" style="text-decoration:none">
+    <div class="card-id">{{ aw.id_name }}</div>
+    <div class="card-title">{{ aw.title or '—' }}</div>
+    <div class="card-artist">{{ aw.artist or '' }}</div>
+    {% set s = aw.status or '' %}
+    <span class="card-status {% if 'stock' in s.lower() %}status-stock{% elif 'order' in s.lower() %}status-order{% elif 'sold' in s.lower() or 'delivered' in s.lower() %}status-sold{% else %}status-other{% endif %}">
+      {{ s or 'N/A' }}
+    </span>
+    {% if aw.dirs %}
+    <div class="card-dirs">
+      {% for d in aw.dirs.split(',') %}
+      <span class="dir-pill dir-{{ d }}">{{ d }}</span>
+      {% endfor %}
+      <span class="file-count">{{ aw.file_count }} fichier{{ 's' if aw.file_count > 1 else '' }}</span>
+    </div>
+    {% else %}
+    <div class="card-dirs"><span class="no-disk">⚠ pas sur disque</span></div>
+    {% endif %}
+  </a>
+{% else %}
+  <div style="padding:48px;color:#555;grid-column:1/-1;text-align:center">
+    Aucune œuvre — lance une sync Odoo d'abord.
+  </div>
+{% endfor %}
+</div>
+
+{% if pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}<a href="?q={{ q }}&page={{ page-1 }}">← Préc</a>{% endif %}
+  {% for p in range(1, pages+1) %}
+    {% if p == page %}<a class="active" href="#">{{ p }}</a>
+    {% elif p <= 3 or p >= pages-2 or (p >= page-2 and p <= page+2) %}
+      <a href="?q={{ q }}&page={{ p }}">{{ p }}</a>
+    {% elif p == 4 or p == pages-3 %}<span class="dots">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page < pages %}<a href="?q={{ q }}&page={{ page+1 }}">Suiv →</a>{% endif %}
+</div>
+{% endif %}
+
+<!-- Modal: tout rafraîchir -->
+<div id="refreshModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.8);align-items:center;justify-content:center">
+  <div style="background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:24px 28px;width:460px;max-width:95vw">
+    <div style="font-size:.95rem;font-weight:700;color:#fff;margin-bottom:4px">⟳ Rafraîchissement complet</div>
+    <div style="font-size:.72rem;color:#666;margin-bottom:18px">Purge des images mises en cache → re-scan disque → cache FM → cache Odoo.</div>
+
+    <!-- Purge -->
+    <div style="margin-bottom:10px;display:flex;justify-content:space-between;font-size:.72rem">
+      <span style="color:#aaa">🧹 Purge cache images</span>
+      <span id="rfPurgeLbl" style="color:#888">En attente…</span>
+    </div>
+
+    <!-- Disk scan -->
+    <div style="margin-bottom:14px;display:flex;justify-content:space-between;font-size:.72rem">
+      <span style="color:#aaa">🔍 Scan disque</span>
+      <span id="rfScanLbl" style="color:#888">En attente…</span>
+    </div>
+
+    <!-- FM -->
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:.75rem;color:#aaa">🗄 Cache FileMaker</span>
+        <span style="font-size:.72rem;color:#60a5fa" id="rfFmLbl">En attente…</span>
+      </div>
+      <div style="background:#222;border-radius:4px;height:6px;overflow:hidden">
+        <div id="rfFmBar" style="height:100%;background:#3b82f6;border-radius:4px;width:0%;transition:width .5s"></div>
+      </div>
+    </div>
+
+    <!-- Odoo -->
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:.75rem;color:#aaa">📦 Cache Odoo</span>
+        <span style="font-size:.72rem;color:#60a5fa" id="rfOdooLbl">En attente…</span>
+      </div>
+      <div style="background:#222;border-radius:4px;height:6px;overflow:hidden">
+        <div id="rfOdooBar" style="height:100%;background:#16a34a;border-radius:4px;width:0%;transition:width .5s"></div>
+      </div>
+    </div>
+
+    <div style="font-size:.72rem;color:#444;margin-bottom:8px" id="rfStatus">Démarrage…</div>
+    <div id="rfErrors" style="display:none;font-size:.7rem;color:#f87171;background:#2a0e0e;border:1px solid #7f1d1d;border-radius:6px;padding:8px 10px;margin-bottom:10px;max-height:120px;overflow:auto"></div>
+    <div id="rfStale" style="display:none;font-size:.7rem;color:#fbbf24;background:#2a210e;border:1px solid #92400e;border-radius:6px;padding:8px 10px;margin-bottom:10px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button id="rfClose" onclick="closeRefreshAll()" style="padding:6px 14px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#aaa;cursor:pointer;font-size:.78rem">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let rfPoll = null;
+
+async function openRefreshAll() {
+  document.getElementById('refreshModal').style.display = 'flex';
+  document.getElementById('rfStatus').textContent  = 'Démarrage…';
+  document.getElementById('rfPurgeLbl').textContent = 'En attente…';
+  document.getElementById('rfScanLbl').textContent  = 'En attente…';
+  document.getElementById('rfFmLbl').textContent    = 'En attente…';
+  document.getElementById('rfOdooLbl').textContent  = 'En attente…';
+  document.getElementById('rfFmBar').style.width    = '0%';
+  document.getElementById('rfOdooBar').style.width  = '0%';
+  document.getElementById('rfFmBar').style.background = '#3b82f6';
+  document.getElementById('rfErrors').style.display = 'none';
+  document.getElementById('rfStale').style.display  = 'none';
+  document.getElementById('rfClose').textContent    = 'Fermer';
+
+  const r = await fetch('/api/refresh_all', {method:'POST'});
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({error: 'Erreur HTTP ' + r.status}));
+    document.getElementById('rfStatus').textContent = '⚠ ' + (e.error || 'Erreur');
+    return;
+  }
+  if (rfPoll) clearInterval(rfPoll);
+  rfPoll = setInterval(pollRefresh, 2000);
+}
+
+function closeRefreshAll() {
+  if (rfPoll) { clearInterval(rfPoll); rfPoll = null; }
+  document.getElementById('refreshModal').style.display = 'none';
+  // Force a reload so the page re-fetches with the new cache state
+  setTimeout(() => location.reload(), 100);
+}
+
+async function pollRefresh() {
+  let d;
+  try { d = await (await fetch('/api/refresh_all/status')).json(); }
+  catch(e) {
+    document.getElementById('rfStatus').textContent = '⚠ Erreur réseau';
+    return;
+  }
+  const fm   = d.fm;
+  const odoo = d.odoo;
+
+  // Purge / Scan steps
+  if (d.purge_files) {
+    document.getElementById('rfPurgeLbl').textContent = `✓ ${d.purge_files.toLocaleString()} fichiers supprimés`;
+    document.getElementById('rfPurgeLbl').style.color = '#4ade80';
+  } else if (d.step === 'purge') {
+    document.getElementById('rfPurgeLbl').textContent = 'Purge en cours…';
+  }
+  if (d.scan_count) {
+    document.getElementById('rfScanLbl').textContent = `✓ ${d.scan_count.toLocaleString()} œuvres indexées`;
+    document.getElementById('rfScanLbl').style.color = '#4ade80';
+  } else if (d.step === 'scan') {
+    document.getElementById('rfScanLbl').textContent = 'Scan en cours…';
+  }
+
+  // FM bar
+  if (fm.total > 0) {
+    const pct = Math.round(fm.done / fm.total * 100);
+    document.getElementById('rfFmBar').style.width = pct + '%';
+    document.getElementById('rfFmLbl').textContent = fm.running
+      ? `${fm.done.toLocaleString()} / ${fm.total.toLocaleString()} (${pct}%)`
+      : fm.done > 0 ? `✓ ${fm.done.toLocaleString()} enregistrements` : 'En attente…';
+  } else if (d.step === 'fm' || fm.running) {
+    document.getElementById('rfFmLbl').textContent = fm.last_error ? '⚠ ' + fm.last_error : 'Connexion FM…';
+  }
+
+  // Odoo bar
+  if (odoo.total > 0) {
+    const pct = Math.round(odoo.done / odoo.total * 100);
+    document.getElementById('rfOdooBar').style.width = pct + '%';
+    document.getElementById('rfOdooLbl').textContent = odoo.running
+      ? `${odoo.done.toLocaleString()} / ${odoo.total.toLocaleString()} (${pct}%)`
+      : odoo.done > 0 ? `✓ ${odoo.done.toLocaleString()} œuvres` : 'En attente…';
+  } else if (d.step === 'odoo' || odoo.running) {
+    document.getElementById('rfOdooLbl').textContent = odoo.last_error ? '⚠ ' + odoo.last_error : 'Connexion Odoo…';
+  }
+
+  // Errors block
+  const errs = d.errors || [];
+  if (fm.last_error && !errs.includes('fm: ' + fm.last_error))   errs.push('fm: ' + fm.last_error);
+  if (odoo.last_error && !errs.includes('odoo: ' + odoo.last_error)) errs.push('odoo: ' + odoo.last_error);
+  const errBox = document.getElementById('rfErrors');
+  if (errs.length) {
+    errBox.innerHTML = '<strong>⚠ Erreurs :</strong><br>' + errs.map(e => '• ' + e).join('<br>');
+    errBox.style.display = 'block';
+  }
+
+  // Stale warning
+  if ((d.stale_fm || d.stale_odoo) && !d.running) {
+    const s = document.getElementById('rfStale');
+    s.innerHTML = `⚠ Records anciens (non renvoyés par cette synchro) — FM: <b>${d.stale_fm}</b> · Odoo: <b>${d.stale_odoo}</b><br><span style="color:#888">(non supprimés — voir le journal pour révision)</span>`;
+    s.style.display = 'block';
+  }
+
+  // Status message
+  const stepMsg = {
+    purge: 'Purge des images en cache…',
+    scan:  'Scan disque…',
+    fm:    'Synchronisation FM…',
+    odoo:  'Synchronisation Odoo…',
+    done:  'Terminé ✓',
+  };
+  document.getElementById('rfStatus').textContent = d.running
+    ? (stepMsg[d.step] || 'En cours…')
+    : (d.step === 'done' ? `Terminé ✓ — ${new Date().toLocaleTimeString()}` : 'Prêt');
+
+  if (!d.running) {
+    clearInterval(rfPoll); rfPoll = null;
+    document.getElementById('rfFmBar').style.width   = '100%';
+    document.getElementById('rfFmBar').style.background = errs.length ? '#dc2626' : '#22c55e';
+    document.getElementById('rfOdooBar').style.width = '100%';
+    document.getElementById('rfOdooBar').style.background = errs.length ? '#dc2626' : '#22c55e';
+    document.getElementById('rfClose').textContent   = 'Fermer';
+  }
+}
+
+async function syncCRM() {
+  const btns = document.querySelectorAll('.h-btn');
+  btns.forEach(b => b.disabled = true);
+  const btn = [...btns].find(b => b.textContent.includes('Sync'));
+  btn.textContent = '↻ Sync…';
+  try {
+    const r = await fetch('/api/sync', {method:'POST'});
+    const d = await r.json();
+    if (d.ok) { btn.textContent = `✓ ${d.count}`; setTimeout(() => location.reload(), 800); }
+    else { btn.textContent = '✗'; alert(d.error); btns.forEach(b => b.disabled = false); }
+  } catch(e) { btn.textContent = '✗'; btns.forEach(b => b.disabled = false); }
+}
+
+async function scanDisk() {
+  const btns = document.querySelectorAll('.h-btn');
+  btns.forEach(b => b.disabled = true);
+  const btn = [...btns].find(b => b.textContent.includes('Scan'));
+  btn.textContent = '🔍…';
+  try {
+    const r = await fetch('/api/scan_disk', {method:'POST'});
+    const d = await r.json();
+    if (d.ok) { btn.textContent = `✓ ${d.count}`; setTimeout(() => location.reload(), 800); }
+    else { btn.textContent = '✗'; alert(d.error); btns.forEach(b => b.disabled = false); }
+  } catch(e) { btn.textContent = '✗'; btns.forEach(b => b.disabled = false); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alignement Odoo ↔ FM — ReviewV2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e5e5e5; min-height: 100vh; }
+
+header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+}
+header a { color: #60a5fa; text-decoration: none; font-size: .85rem; }
+header a:hover { text-decoration: underline; }
+h1 { font-size: 1rem; font-weight: 700; color: #fff; flex: 1; }
+
+.toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 20px; background: #141414; border-bottom: 1px solid #222;
+}
+.toolbar input[type=text] {
+  flex: 1; min-width: 200px; max-width: 340px;
+  padding: 7px 12px; border-radius: 6px; border: 1px solid #333;
+  background: #1a1a1a; color: #e5e5e5; font-size: .85rem;
+  outline: none;
+}
+.toolbar input[type=text]:focus { border-color: #60a5fa; }
+.toolbar select {
+  padding: 7px 10px; border-radius: 6px; border: 1px solid #333;
+  background: #1a1a1a; color: #e5e5e5; font-size: .8rem; cursor: pointer;
+}
+.toolbar label { font-size: .8rem; color: #aaa; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.toolbar input[type=checkbox] { accent-color: #60a5fa; }
+
+.btn {
+  padding: 7px 14px; border-radius: 6px; border: none;
+  font-size: .82rem; font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.btn-blue  { background: #2563eb; color: #fff; }
+.btn-blue:hover  { background: #1d4ed8; }
+.btn-blue:disabled { background: #1e3a5f; color: #60a5fa; cursor: default; }
+.btn-green { background: #16a34a; color: #fff; }
+.btn-green:hover { background: #15803d; }
+.btn-orange { background: #d97706; color: #fff; }
+.btn-orange:hover { background: #b45309; }
+.btn-sm { padding: 4px 10px; font-size: .75rem; border-radius: 5px; border: none; cursor: pointer; font-weight: 600; }
+
+.sync-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 20px; background: #1a1a1a; border-bottom: 1px solid #222; font-size: .78rem;
+}
+.sync-bar .lbl { color: #666; }
+.sync-bar .val { color: #aaa; }
+.sync-bar .val.fresh { color: #4ade80; }
+.progress-mini-bg { flex: 1; max-width: 200px; background: #222; border-radius: 4px; height: 6px; overflow: hidden; display: none; }
+.progress-mini { height: 100%; background: #2563eb; border-radius: 4px; transition: width .4s; }
+
+.stats-row {
+  display: flex; gap: 12px; padding: 12px 20px; background: #141414; border-bottom: 1px solid #222; flex-wrap: wrap;
+}
+.stat-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px; font-size: .78rem; font-weight: 600; border: 1px solid;
+  cursor: pointer; user-select: none; transition: opacity .15s;
+}
+.stat-chip:hover { opacity: .8; }
+.stat-chip.active { outline: 2px solid #fff; }
+.chip-all   { border-color: #444; color: #aaa; background: #1a1a1a; }
+.chip-ok    { border-color: #166534; color: #4ade80; background: #052e16; }
+.chip-odoo  { border-color: #92400e; color: #fbbf24; background: #1c1000; }
+.chip-fm    { border-color: #1e3a8a; color: #93c5fd; background: #0a1628; }
+.chip-diff  { border-color: #7f1d1d; color: #f87171; background: #1c0a0a; }
+.chip-miss  { border-color: #3f3f46; color: #71717a; background: #18181b; }
+.chip-num   { font-size: .85rem; }
+
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse; font-size: .8rem; min-width: 900px;
+}
+thead th {
+  padding: 8px 10px; background: #1a1a1a; color: #888;
+  font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  border-bottom: 1px solid #2a2a2a; text-align: left; white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid #1e1e1e; transition: background .1s; cursor: pointer; }
+tbody tr:hover { background: #171717; }
+tbody tr.expanded { background: #141414; }
+tbody td { padding: 7px 10px; vertical-align: middle; }
+td.id { font-family: monospace; font-size: .78rem; color: #93c5fd; white-space: nowrap; }
+td.title { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ddd; }
+td.artist { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #aaa; }
+td.status { white-space: nowrap; }
+td.actions { white-space: nowrap; text-align: right; }
+
+/* Field dots */
+.dots { display: flex; gap: 3px; flex-wrap: wrap; }
+.dot {
+  width: 11px; height: 11px; border-radius: 50%; cursor: help; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.1);
+}
+.dot-ok   { background: #16a34a; }
+.dot-odoo { background: #d97706; }
+.dot-fm   { background: #2563eb; }
+.dot-diff { background: #dc2626; }
+.dot-na   { background: #333; border-color: #333; }
+
+/* Status badges */
+.badge {
+  display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: .68rem; font-weight: 600;
+}
+.badge-stock   { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+.badge-transit { background: #0c1a3a; color: #93c5fd; border: 1px solid #1e3a8a; }
+.badge-order   { background: #1c1000; color: #fbbf24; border: 1px solid #92400e; }
+.badge-hold    { background: #1c1c1c; color: #888;    border: 1px solid #444; }
+
+/* Expand row */
+.expand-row { display: none; background: #111; }
+.expand-row.show { display: table-row; }
+.expand-cell { padding: 12px 20px; }
+.fields-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px; margin-bottom: 10px;
+}
+.field-card {
+  background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px;
+  padding: 6px 8px;
+}
+.field-card.ok   { border-left: 3px solid #16a34a; }
+.field-card.odoo_only { border-left: 3px solid #d97706; }
+.field-card.fm_only   { border-left: 3px solid #2563eb; }
+.field-card.both_diff { border-left: 3px solid #dc2626; }
+.field-card.na        { border-left: 3px solid #333; opacity: .5; }
+.field-name { font-size: .7rem; color: #666; margin-bottom: 4px; font-family: monospace; }
+.field-vals { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.field-src { font-size: .65rem; color: #555; margin-bottom: 1px; }
+.field-val { font-size: .7rem; word-break: break-all; color: #bbb; }
+.field-val.empty { color: #444; font-style: italic; }
+.field-val.match { color: #4ade80; }
+
+.expand-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.empty-state { text-align: center; padding: 60px 20px; color: #444; }
+.empty-state h2 { font-size: 1.1rem; margin-bottom: 8px; }
+.empty-state p { font-size: .83rem; }
+
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px; }
+.pagination button { padding: 5px 12px; border-radius: 5px; border: 1px solid #333; background: #1a1a1a; color: #aaa; cursor: pointer; }
+.pagination button:hover:not(:disabled) { background: #222; }
+.pagination button:disabled { opacity: .3; cursor: default; }
+.pagination .page-info { font-size: .8rem; color: #666; }
+
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #60a5fa; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+  padding: 10px 18px; border-radius: 8px; font-size: .82rem; font-weight: 600;
+  opacity: 0; transform: translateY(10px); transition: all .25s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok   { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+.toast.err  { background: #1c0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← Retour</a>
+  <h1>Alignement Odoo ↔ FileMaker</h1>
+</header>
+
+<!-- Sync bar -->
+<div class="sync-bar">
+  <span class="lbl">Cache Odoo :</span>
+  <span class="val" id="odooSyncDate">—</span>
+  <button class="btn btn-blue" id="btnSyncOdoo" onclick="syncOdoo()">
+    Rafraîchir cache Odoo
+  </button>
+  <div class="progress-mini-bg" id="syncProgress">
+    <div class="progress-mini" id="syncBar" style="width:0%"></div>
+  </div>
+  <span id="syncLabel" style="font-size:.75rem;color:#60a5fa;display:none"></span>
+  <span style="flex:1"></span>
+  <span class="lbl">Cache FM :</span>
+  <span class="val" id="fmSyncDate">—</span>
+</div>
+
+<!-- Stats row -->
+<div class="stats-row" id="statsRow">
+  <div class="stat-chip chip-all active" onclick="filterStatus('')" data-s="">
+    <span>Toutes</span> <span class="chip-num" id="cnt-all">—</span>
+  </div>
+  <div class="stat-chip chip-ok"   onclick="filterStatus('ok')"        data-s="ok">
+    <span>● Alignées</span> <span class="chip-num" id="cnt-ok">—</span>
+  </div>
+  <div class="stat-chip chip-odoo" onclick="filterStatus('odoo_only')" data-s="odoo_only">
+    <span>● Odoo seul</span> <span class="chip-num" id="cnt-odoo">—</span>
+  </div>
+  <div class="stat-chip chip-fm"   onclick="filterStatus('fm_only')"   data-s="fm_only">
+    <span>● FM seul</span> <span class="chip-num" id="cnt-fm">—</span>
+  </div>
+  <div class="stat-chip chip-diff" onclick="filterStatus('both_diff')" data-s="both_diff">
+    <span>● Conflits</span> <span class="chip-num" id="cnt-diff">—</span>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="Rechercher id_name, artiste, titre…" oninput="delayedLoad()">
+  <label><input type="checkbox" id="chkDiff" onchange="loadPage(1)"> Désalignés seulement</label>
+  <select id="selStatus" onchange="loadPage(1)">
+    <option value="">Tous statuts FM</option>
+    <option value="ok">Aligné</option>
+    <option value="odoo_only">Odoo seul</option>
+    <option value="fm_only">FM seul</option>
+    <option value="both_diff">Conflit</option>
+  </select>
+  <span style="flex:1"></span>
+  <span id="totalLabel" style="font-size:.78rem;color:#666">—</span>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+<table id="mainTable">
+<thead>
+  <tr>
+    <th>IdName</th>
+    <th>Titre</th>
+    <th>Artiste</th>
+    <th>Statut</th>
+    <th>Galerie</th>
+    <th title="9 champs photo">Champs</th>
+    <th style="text-align:right">Actions</th>
+  </tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<div id="emptyState" class="empty-state" style="display:none">
+  <h2>Aucun résultat</h2>
+  <p>Modifiez vos filtres ou synchronisez le cache Odoo.</p>
+</div>
+
+<div class="pagination" id="pagination" style="display:none">
+  <button id="btnPrev" onclick="loadPage(currentPage-1)" disabled>‹ Préc.</button>
+  <span class="page-info" id="pageInfo"></span>
+  <button id="btnNext" onclick="loadPage(currentPage+1)" disabled>Suiv. ›</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const FIELDS = [
+  ['main_super_picture_hd', 'MAINFM',    'Super HD'],
+  ['main_picture_hd',       'MAIN_HD',   'Main HD'],
+  ['main_a6_picture',       'UrlMainA5', 'A6/A5'],
+  ['back_pictures',         'BACK300',   'Back'],
+  ['frame_picture',         'FRAME300',  'Cadre'],
+  ['perspective_url',       'PERS300',   'Perspective'],
+  ['signatures_pictures',   'Signature', 'Signature'],
+  ['other_url',             'OTHER300',  'Autre'],
+  ['detail_1_url',          'DET300',    'Détail'],
+];
+
+const DOT_CLASS = { ok: 'dot-ok', odoo_only: 'dot-odoo', fm_only: 'dot-fm', both_diff: 'dot-diff' };
+const STATUS_LABELS = { ok:'Aligné', odoo_only:'Odoo seul', fm_only:'FM seul', both_diff:'Conflit' };
+const STATUS_BADGE  = {
+  'In stock':   'badge-stock',
+  'In transit': 'badge-transit',
+  'On Order':   'badge-order',
+  'On order':   'badge-order',
+  'On hold':    'badge-hold',
+};
+
+let currentPage = 1;
+let searchTimer = null;
+let expandedRow = null;
+let globalStats = { ok:0, odoo_only:0, fm_only:0, both_diff:0 };
+
+/* ── search debounce ───────────────────────────────────────── */
+function delayedLoad() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadPage(1), 300);
+}
+
+/* ── filter by status chip ────────────────────────────────── */
+function filterStatus(s) {
+  document.getElementById('selStatus').value = s;
+  document.querySelectorAll('.stat-chip').forEach(c => c.classList.toggle('active', c.dataset.s === s));
+  loadPage(1);
+}
+
+/* ── load page ────────────────────────────────────────────── */
+async function loadPage(p) {
+  currentPage = p;
+  const q      = document.getElementById('searchInput').value.trim();
+  const diff   = document.getElementById('chkDiff').checked ? '1' : '0';
+  const status = document.getElementById('selStatus').value;
+
+  const params = new URLSearchParams({ page: p, diff, q });
+  if (status) params.set('status', status);
+
+  const res  = await fetch('/api/sync_check?' + params);
+  const data = await res.json();
+
+  if (data.need_sync) {
+    document.getElementById('tbody').innerHTML = '';
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('emptyState').innerHTML = `
+      <h2>Cache Odoo non initialisé</h2>
+      <p>Cliquez sur <strong>Rafraîchir cache Odoo</strong> pour charger les données.</p>`;
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  renderRows(data.rows);
+  renderPagination(data.total, data.page, data.per_page);
+  document.getElementById('totalLabel').textContent = `${data.total} oeuvre${data.total>1?'s':''}`;
+  updateStats(data.rows, data.total);
+}
+
+/* ── render rows ──────────────────────────────────────────── */
+function renderRows(rows) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  document.getElementById('emptyState').style.display = rows.length ? 'none' : 'block';
+
+  rows.forEach(row => {
+    // Main row
+    const tr = document.createElement('tr');
+    tr.dataset.id = row.id_name;
+    tr.onclick = () => toggleExpand(row);
+
+    const statusBadge = `<span class="badge ${STATUS_BADGE[row.status]||'badge-hold'}">${row.status}</span>`;
+
+    // Dots
+    let dots = '<div class="dots">';
+    FIELDS.forEach(([odoo_f,,label]) => {
+      const fd = row.fields[odoo_f];
+      const st = fd ? fd.status : 'na';
+      dots += `<div class="dot ${DOT_CLASS[st]||'dot-na'}" title="${label}: ${STATUS_LABELS[st]||'N/A'}"></div>`;
+    });
+    dots += '</div>';
+
+    const hasDiff = row.has_diff;
+    tr.innerHTML = `
+      <td class="id">${row.id_name}</td>
+      <td class="title" title="${esc(row.title)}">${esc(row.title)||'<span style="color:#444">—</span>'}</td>
+      <td class="artist" title="${esc(row.artist)}">${esc(row.artist)||'—'}</td>
+      <td class="status">${statusBadge}</td>
+      <td style="font-size:.75rem;color:#666">${esc(row.gallery)||'—'}</td>
+      <td>${dots}</td>
+      <td class="actions">
+        ${hasDiff ? `<button class="btn btn-sm btn-orange" onclick="event.stopPropagation();pushAll('${esc(row.id_name)}', this)">Pousser tout →FM</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+
+    // Expand row (hidden by default)
+    const expandTr = document.createElement('tr');
+    expandTr.className = 'expand-row';
+    expandTr.id = 'expand-' + row.id_name.replace(/[^a-zA-Z0-9]/g,'_');
+    expandTr.innerHTML = `<td class="expand-cell" colspan="7">${buildExpandContent(row)}</td>`;
+    tbody.appendChild(expandTr);
+  });
+}
+
+function buildExpandContent(row) {
+  let cards = '<div class="fields-grid">';
+  FIELDS.forEach(([odoo_f, fm_f, label]) => {
+    const fd = row.fields[odoo_f];
+    if (!fd) return;
+    const st = fd.status;
+    const ov = fd.odoo || '';
+    const fv = fd.fm   || '';
+    const short = v => v ? (v.length > 60 ? '…' + v.slice(-55) : v) : '';
+    cards += `
+      <div class="field-card ${st}">
+        <div class="field-name">${label}<br><span style="color:#3a3a3a;font-size:.62rem">${odoo_f} → ${fm_f}</span></div>
+        <div class="field-vals">
+          <div>
+            <div class="field-src">Odoo</div>
+            <div class="field-val ${!ov?'empty':st==='ok'?'match':''}" title="${esc(ov)}">${esc(short(ov))||'(vide)'}</div>
+          </div>
+          <div>
+            <div class="field-src">FileMaker</div>
+            <div class="field-val ${!fv?'empty':st==='ok'?'match':''}" title="${esc(fv)}">${esc(short(fv))||'(vide)'}</div>
+          </div>
+        </div>
+      </div>`;
+  });
+  cards += '</div>';
+
+  // Field-level push buttons for diffs only
+  const diffFields = FIELDS.filter(([odoo_f]) => {
+    const fd = row.fields[odoo_f];
+    return fd && fd.status !== 'ok';
+  });
+
+  let actions = '<div class="expand-actions">';
+  if (diffFields.length) {
+    const fList = JSON.stringify(diffFields.map(([f])=>f));
+    actions += `<button class="btn btn-sm btn-orange" onclick="pushFields('${esc(row.id_name)}', ${fList}, this)">Pousser champs désalignés →FM</button>`;
+  }
+  diffFields.forEach(([odoo_f,,label]) => {
+    actions += `<button class="btn btn-sm btn-blue" onclick="pushFields('${esc(row.id_name)}', ['${odoo_f}'], this)" title="${odoo_f}">
+      Pousser ${label}</button>`;
+  });
+  actions += '</div>';
+
+  return cards + actions;
+}
+
+/* ── toggle expand ────────────────────────────────────────── */
+function toggleExpand(row) {
+  const id  = 'expand-' + row.id_name.replace(/[^a-zA-Z0-9]/g,'_');
+  const el  = document.getElementById(id);
+  if (!el) return;
+  const isOpen = el.classList.contains('show');
+  // Close previous
+  if (expandedRow && expandedRow !== id) {
+    const prev = document.getElementById(expandedRow);
+    if (prev) prev.classList.remove('show');
+  }
+  el.classList.toggle('show', !isOpen);
+  expandedRow = isOpen ? null : id;
+}
+
+/* ── push ─────────────────────────────────────────────────── */
+async function pushAll(id_name, btn) {
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  await doPush(id_name, []);
+  btn.textContent = 'Envoyé ✓';
+}
+
+async function pushFields(id_name, fields, btn) {
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  await doPush(id_name, fields);
+  btn.textContent = 'Envoyé ✓';
+}
+
+async function doPush(id_name, fields) {
+  try {
+    const res  = await fetch('/api/sync_check/push', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id_name, fields}),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`${id_name} : ${data.pushed} champ(s) poussé(s) vers FM`, 'ok');
+      setTimeout(() => loadPage(currentPage), 800);
+    } else {
+      showToast(`Erreur : ${data.error || 'push échoué'}`, 'err');
+    }
+  } catch(e) {
+    showToast('Erreur réseau', 'err');
+  }
+}
+
+/* ── sync Odoo cache ──────────────────────────────────────── */
+let syncPoll = null;
+
+async function syncOdoo() {
+  const btn = document.getElementById('btnSyncOdoo');
+  btn.disabled = true; btn.textContent = 'Démarrage…';
+  document.getElementById('syncProgress').style.display = 'block';
+  document.getElementById('syncLabel').style.display = 'inline';
+
+  await fetch('/api/sync_check/sync_odoo', {method:'POST'});
+  if (syncPoll) clearInterval(syncPoll);
+  syncPoll = setInterval(pollSyncStatus, 1500);
+}
+
+async function pollSyncStatus() {
+  const res  = await fetch('/api/sync_check/sync_odoo_status');
+  const data = await res.json();
+
+  const pct = data.total > 0 ? Math.round(data.done / data.total * 100) : 0;
+  document.getElementById('syncBar').style.width = pct + '%';
+  document.getElementById('syncLabel').textContent = data.running
+    ? `${data.done} / ${data.total}…`
+    : `Terminé (${data.done})`;
+
+  if (!data.running) {
+    clearInterval(syncPoll);
+    const btn = document.getElementById('btnSyncOdoo');
+    btn.disabled = false; btn.textContent = 'Rafraîchir cache Odoo';
+    document.getElementById('syncProgress').style.display = 'none';
+    showToast('Cache Odoo mis à jour', 'ok');
+    loadSyncDates();
+    loadPage(1);
+  }
+}
+
+/* ── sync dates ───────────────────────────────────────────── */
+async function loadSyncDates() {
+  // Odoo sync date from status endpoint
+  try {
+    const res  = await fetch('/api/sync_check/sync_odoo_status');
+    const data = await res.json();
+    document.getElementById('odooSyncDate').textContent = data.synced_at || 'jamais';
+    document.getElementById('odooSyncDate').className = 'val' + (data.synced_at ? ' fresh' : '');
+  } catch(e) {}
+
+  // FM sync date: shown from first row's fm_sync field — we'll update after load
+}
+
+/* ── stats update ─────────────────────────────────────────── */
+function updateStats(rows, total) {
+  // Count across visible rows (approximation — full count needs server-side)
+  // We use total from query for 'all', and local count for types
+  let ok=0, odoo=0, fm=0, diff=0;
+  rows.forEach(r => {
+    FIELDS.forEach(([f]) => {
+      const fd = r.fields[f];
+      if (!fd) return;
+      if (fd.status === 'ok')        ok++;
+      if (fd.status === 'odoo_only') odoo++;
+      if (fd.status === 'fm_only')   fm++;
+      if (fd.status === 'both_diff') diff++;
+    });
+  });
+  document.getElementById('cnt-all').textContent  = total;
+  document.getElementById('cnt-ok').textContent   = ok   || '—';
+  document.getElementById('cnt-odoo').textContent = odoo || '—';
+  document.getElementById('cnt-fm').textContent   = fm   || '—';
+  document.getElementById('cnt-diff').textContent = diff || '—';
+}
+
+/* ── pagination ───────────────────────────────────────────── */
+function renderPagination(total, page, perPage) {
+  const pages = Math.ceil(total / perPage);
+  const wrap  = document.getElementById('pagination');
+  if (pages <= 1) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  document.getElementById('pageInfo').textContent = `Page ${page} / ${pages}`;
+  document.getElementById('btnPrev').disabled = page <= 1;
+  document.getElementById('btnNext').disabled = page >= pages;
+}
+
+/* ── toast ────────────────────────────────────────────────── */
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+/* ── utils ────────────────────────────────────────────────── */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── init ─────────────────────────────────────────────────── */
+loadSyncDates();
+loadPage(1);
+</script>
+</body>
+</html>
