@@ -25,8 +25,8 @@ services:
       - "traefik.http.routers.reviewv2.tls.certresolver=letsencrypt"
       - "traefik.http.services.reviewv2.loadbalancer.server.port=5000"
     networks:
-      - traefik-network
+      - staging-traefik-net
 
 networks:
-  traefik-network:
+  staging-traefik-net:
     external: true
