@@ -1,0 +1,32 @@
+services:
+  review2:
+    image: ghcr.io/karroad/review2:${IMAGE_TAG:-main-test}
+    container_name: reviewv2
+    restart: unless-stopped
+    volumes:
+      # Photos (read-only mounts — no source code)
+      - /home/projet/pictures/img/FM:/photos/FM:ro
+      - /home/projet/pictures/img/A5:/photos/A5:ro
+      - /home/projet/pictures/img/np:/photos/np:ro
+      - /home/projet/pictures/img/300:/photos/300:ro
+      - /home/projet/pictures/img/tiff:/photos/tiff:ro
+      - /home/pictures/ARTIST-FULL:/photos/artist_full:ro
+      - /media:/photos/media:ro
+      - /home/projet/pictures/img/Perspective:/photos/perspective:ro
+      # Persistent data (thumbs, sqlite db)
+      - /opt/review2/data:/app/data
+    env_file: /opt/review2/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.reviewv2.rule=Host(`review.operagallery.com`)"
+      - "traefik.http.routers.reviewv2.entrypoints=websecure"
+      - "traefik.http.routers.reviewv2.tls.certresolver=letsencrypt"
+      - "traefik.http.services.reviewv2.loadbalancer.server.port=5000"
+    networks:
+      - traefik-network
+
+networks:
+  traefik-network:
+    external: true

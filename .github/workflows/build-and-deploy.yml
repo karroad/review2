@@ -1,0 +1,111 @@
+name: Build & Deploy review2 (GHCR)
+
+on:
+  push:
+    branches: [ "main-test" ]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-review2-main-test
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/karroad/review2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tag
+        id: meta
+        run: echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push obfuscated image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:main-test
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Deploy over SSH (pull & restart review2)
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          envs: IMAGE_TAG
+          script: |
+            set -euo pipefail
+
+            APP_DIR="/opt/review2"
+            COMPOSE_FILE="$APP_DIR/docker-compose.prod.yml"
+
+            if [ ! -f "$COMPOSE_FILE" ]; then
+              echo "ERROR: $COMPOSE_FILE missing on server"
+              exit 1
+            fi
+
+            echo "==> Writing IMAGE_TAG=$IMAGE_TAG to $APP_DIR/.env"
+            umask 077
+            # Preserve existing .env vars, just update IMAGE_TAG
+            if grep -q "^IMAGE_TAG=" "$APP_DIR/.env" 2>/dev/null; then
+              sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=$IMAGE_TAG|" "$APP_DIR/.env"
+            else
+              printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" >> "$APP_DIR/.env"
+            fi
+
+            if command -v docker compose >/dev/null 2>&1; then
+              DC="docker compose"
+            else
+              DC="docker-compose"
+            fi
+
+            echo "==> Logging into GHCR"
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io \
+              -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            echo "==> Pulling review2 image"
+            $DC -f "$COMPOSE_FILE" pull review2
+
+            echo "==> Restarting review2 service"
+            $DC -f "$COMPOSE_FILE" up -d --no-deps review2
+
+            echo "==> Pruning dangling images"
+            docker image prune -f >/dev/null || true
+
+            echo "==> Status"
+            $DC -f "$COMPOSE_FILE" ps
+            echo "==> Deployed IMAGE_TAG=$IMAGE_TAG"
