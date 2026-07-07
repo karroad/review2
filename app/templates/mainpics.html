@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Main Pictures — ReviewV2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100vh; overflow: hidden; background: #0a0a0a;
+  color: #e5e5e5; font-family: system-ui, sans-serif; display: flex; flex-direction: column; }
+
+/* ── Header ── */
+header { flex-shrink:0; display:flex; align-items:center; gap:8px;
+  padding:6px 14px; background:#111; border-bottom:1px solid #1a1a1a; }
+header a { color:#555; text-decoration:none; font-size:.78rem; }
+header a:hover { color:#aaa; }
+.h-title { font-size:.8rem; color:#333; font-weight:700; }
+.h-title b { color:#60a5fa; }
+#searchBox { padding:4px 10px; border-radius:4px; border:1px solid #222;
+  background:#080808; color:#ccc; font-size:.75rem; width:180px; }
+#searchBox:focus { outline:none; border-color:#3b82f6; }
+#fcount { font-size:.68rem; color:#2563eb; min-width:60px; }
+#progress { font-size:.7rem; color:#2a2a2a; margin-left:auto; white-space:nowrap; }
+
+/* ── Filtres ── */
+.frow { flex-shrink:0; padding:5px 14px; background:#0d0d0d;
+  border-bottom:1px solid #141414; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.flabel { font-size:.58rem; color:#2a2a2a; white-space:nowrap; }
+.fsep   { width:1px; height:14px; background:#1e1e1e; flex-shrink:0; }
+.chip { padding:2px 8px; border-radius:10px; font-size:.6rem; cursor:pointer;
+  border:1px solid #1a1a1a; background:#0a0a0a; color:#333;
+  transition:all .1s; user-select:none; white-space:nowrap; }
+.chip:hover { border-color:#2a2a2a; color:#666; }
+.chip.s-on.stk { background:#0c1e3a; border-color:#2563eb; color:#60a5fa; }
+.chip.s-on.trn { background:#170d26; border-color:#7c3aed; color:#a78bfa; }
+.chip.s-on.ret { background:#1c0d00; border-color:#b45309; color:#fbbf24; }
+.chip.s-on.dlv { background:#141414; border-color:#444;    color:#aaa;    }
+.chip.t-on.ctp { background:#1a0d2e; border-color:#a855f7; color:#c4b5fd; }
+.chip.rv-on.crv { background:#0a1e0a; border-color:#16a34a; color:#86efac; }
+.chip.m-on.mhd  { background:#0c1e3a; border-color:#2563eb; color:#60a5fa; }
+.chip.m-on.mld  { background:#071810; border-color:#16a34a; color:#4ade80; }
+.chip.m-on.mlg  { background:#1c0d00; border-color:#b45309; color:#fbbf24; }
+.chip.r-has    { background:#071c10; border-color:#16a34a; color:#4ade80;  }
+.chip.r-mis    { background:#2e0000; border-color:#b91c1c; color:#f87171;  }
+.freset { font-size:.58rem; padding:2px 7px; border-radius:4px;
+  border:1px solid #1a1a1a; background:#0a0a0a; color:#252525; cursor:pointer; }
+.freset:hover { color:#aaa; border-color:#333; }
+
+/* ── Hint bar (picking mode) ── */
+#hintBar { flex-shrink:0; display:none; align-items:center; gap:8px;
+  padding:4px 14px; background:#120d00; border-bottom:1px solid #2d1f00;
+  font-size:.72rem; position:relative; z-index:20; }
+#hintBar.show { display:flex; }
+.hb-file   { font-weight:600; color:#fbbf24; }
+.hb-text   { color:#444; }
+.hb-cancel { margin-left:auto; padding:2px 8px; border-radius:4px;
+  border:1px solid #3d2800; background:transparent; color:#555; cursor:pointer; font-size:.68rem; }
+.hb-cancel:hover { color:#fbbf24; }
+
+/* ── Feed ── */
+#feed { flex:1; overflow-y:auto; }
+.item { border-bottom:1px solid #0f0f0f; }
+.item.open { border-bottom:2px solid #1a3060; }
+.item.reviewed { opacity:.5; }
+
+.ihead { display:flex; align-items:center; gap:8px;
+  padding:8px 14px; cursor:pointer; min-height:50px; transition:background .1s; }
+.ihead:hover { background:#0d0d0d; }
+.item.open .ihead { background:#0c1525; }
+.i-id   { font-size:.75rem; font-weight:700; color:#d0d0d0; flex-shrink:0; min-width:80px; }
+.i-tit  { font-size:.68rem; color:#3a3a3a; flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item.open .i-tit { color:#777; }
+.i-sta  { font-size:.58rem; font-weight:600; padding:1px 6px; border-radius:8px;
+  flex-shrink:0; white-space:nowrap; }
+.sta-stk { background:#0c1e3a; color:#3b82f6; }
+.sta-trn { background:#170d26; color:#a78bfa; }
+.sta-ret { background:#1c0d00; color:#d97706; }
+.sta-dlv { background:#141414; color:#444;    }
+.sta-oth { background:#111;    color:#2a2a2a; }
+.i-pills { display:flex; gap:3px; flex-wrap:wrap; flex-shrink:0; }
+.dpill { font-size:.52rem; font-weight:700; padding:1px 4px; border-radius:3px; }
+.dpill.FM   { background:#0c1e3a; color:#3b82f6; }
+.dpill.A5   { background:#071810; color:#16a34a; }
+.dpill.NP   { background:#1c0d00; color:#fb923c; }
+.dpill.d300 { background:#0c2830; color:#06b6d4; }
+.dpill.TIFF { background:#1a0014; color:#d946ef; }
+/* Live state badges (filled after detail load) */
+.st-badges { display:flex; gap:3px; flex-shrink:0; }
+.stb { font-size:.5rem; font-weight:800; padding:1px 5px; border-radius:3px;
+  border:1px solid transparent; }
+.stb.ok   { background:#071c10; color:#4ade80; border-color:#16a34a55; }
+.stb.miss { background:#2e0000; color:#f87171; border-color:#b91c1c55; }
+.stb.lg   { background:#1c0d00; color:#fbbf24; border-color:#b4530955; }
+.i-warn { font-size:.58rem; color:#5a1a1a; flex-shrink:0; }
+.i-chev { font-size:.7rem; color:#1e1e1e; flex-shrink:0; transition:transform .15s; }
+.item.open .i-chev { transform:rotate(90deg); color:#3b82f6; }
+
+/* ── Detail ── */
+.idetail { display:none; padding:10px 14px 14px; background:#08090e; border-top:1px solid #111; }
+.item.open .idetail { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.ptitle { font-size:.58rem; font-weight:700; color:#1e1e1e; text-transform:uppercase;
+  letter-spacing:.08em; margin-bottom:7px; }
+.loading-detail { color:#252525; font-size:.72rem; padding:20px; grid-column:1/-1; text-align:center; }
+
+/* Disk cards */
+.dcard { display:flex; align-items:center; gap:6px; padding:4px 6px;
+  background:#0c0c0c; border-radius:4px; border:2px solid #141414;
+  margin-bottom:4px; cursor:pointer; transition:border-color .1s; }
+.dcard:hover   { border-color:#1e1e1e; }
+.dcard.picked  { border-color:#d97706; background:#100900; }
+.dcard.is-best { border-color:#16a34a88 !important; background:#060f0a; }
+.dcard.dimmed  { opacity:.4; }
+.dcard img { width:84px; height:84px; object-fit:cover; border-radius:3px;
+  background:#161616; flex-shrink:0; }
+.dinfo { min-width:0; flex:1; }
+.dname { font-size:.62rem; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dmeta { display:flex; gap:3px; margin-top:2px; flex-wrap:wrap; }
+.dbadge { font-size:.5rem; font-weight:700; padding:1px 3px; border-radius:2px; background:#161616; color:#333; }
+.dbadge.FM { background:#0c1e3a; color:#60a5fa; }
+.dbadge.A5 { background:#071810; color:#4ade80; }
+.dbadge.NP { background:#1c0d00; color:#fb923c; }
+.rbadge { font-size:.5rem; padding:1px 3px; border-radius:2px; background:#161616; color:#333; }
+.rbadge.MAIN { background:#0c1e3a; color:#93c5fd; }
+.best-pill { font-size:.48rem; font-weight:800; padding:1px 5px; border-radius:3px;
+  background:#14532d; color:#4ade80; border:1px solid #22c55e55; }
+.px-pill { font-size:.48rem; padding:1px 4px; border-radius:3px; background:#0c1e3a; color:#7dd3fc; }
+.tif-hint { font-size:.48rem; font-weight:700; padding:1px 4px; border-radius:2px;
+  background:#2a1400; color:#fb923c; border:1px solid #b45309; }
+.dedit { font-size:.52rem; padding:2px 4px; border-radius:3px;
+  border:1px solid #1a1a1a; background:#0f0f0f; color:#2a2a2a; text-decoration:none; flex-shrink:0; }
+.dedit:hover { color:#aaa; }
+
+/* Main slots (big) */
+.mslot { display:flex; align-items:center; gap:8px; padding:6px 8px;
+  background:#0c0c0c; border-radius:5px; border:2px solid #141414; margin-bottom:8px;
+  transition:border-color .1s; }
+.mslot.filled { border-color:#071c1066; }
+.mslot.empty  { border-color:#2e000044; }
+body.picking .mslot { cursor:pointer; border-color:#3d2800; }
+body.picking .mslot:hover, .mslot.pick-match { border-color:#d97706 !important; background:#130900; }
+.mslot.pick-match { box-shadow:0 0 0 2px #f59e0b44; }
+.mthumb { width:110px; height:110px; object-fit:cover; border-radius:4px; background:#161616; flex-shrink:0; }
+.mempty { width:110px; height:110px; border-radius:4px; flex-shrink:0; background:#0f0f0f;
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:#1a1a1a; }
+.minfo { min-width:0; flex:1; }
+.mlabel { font-size:.82rem; font-weight:700; color:#ccc; }
+.mlabel .fname-code { font-size:.55rem; font-weight:400; color:#3a3a3a; font-family:monospace; }
+.mfname { font-size:.55rem; color:#333; margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mhint  { font-size:.58rem; color:#7c3a00; margin-top:3px; display:none; }
+body.picking .mhint { display:block; }
+.mactions-slot { display:flex; gap:4px; margin-top:5px; }
+.url-badge { font-size:.48rem; font-weight:700; padding:1px 5px; border-radius:3px; }
+.url-badge.tiff { background:#2a1400; color:#fb923c; border:1px solid #b45309; }
+.url-badge.f404 { background:#2e0000; color:#f87171; border:1px solid #b91c1c; }
+.sbtn { font-size:.55rem; padding:2px 6px; border-radius:3px; cursor:pointer;
+  border:1px solid #1a1a1a; background:#0f0f0f; color:#555; }
+.sbtn:hover { color:#ddd; border-color:#333; }
+.sbtn.clr:hover { color:#f87171; border-color:#b91c1c; }
+.sbtn.up:hover  { color:#60a5fa; border-color:#3b82f6; }
+
+/* Legacy banner */
+.legacy-box { background:#140c00; border:1px solid #3d2800; border-radius:5px;
+  padding:6px 8px; margin-bottom:8px; }
+.legacy-title { font-size:.6rem; font-weight:700; color:#fbbf24; margin-bottom:5px; }
+.lrow { display:flex; align-items:center; gap:6px; padding:3px 0; border-top:1px solid #1e1400; }
+.lrow:first-of-type { border-top:none; }
+.lthumb { width:46px; height:46px; object-fit:cover; border-radius:3px; background:#161616; flex-shrink:0; }
+.linfo { min-width:0; flex:1; }
+.llabel { font-size:.58rem; color:#d97706; font-weight:600; }
+.lfname { font-size:.5rem; color:#444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbtn { font-size:.52rem; padding:2px 5px; border-radius:3px; cursor:pointer;
+  border:1px solid #1a1a1a; background:#0f0f0f; color:#666; white-space:nowrap; }
+.lbtn:hover { color:#fff; border-color:#444; }
+.lbtn.clr:hover { color:#f87171; border-color:#b91c1c; }
+.field-err { background:#2e0000; border:1px solid #b91c1c; border-radius:4px;
+  padding:5px 8px; margin-bottom:8px; font-size:.6rem; color:#f87171; }
+
+/* Action bar */
+.dactions { display:flex; gap:5px; align-items:center; padding:0 0 8px; grid-column:1/-1; }
+.btn { padding:3px 9px; border-radius:4px; border:1px solid #1e1e1e;
+  background:#141414; color:#666; font-size:.68rem; cursor:pointer; white-space:nowrap; }
+.btn:hover { background:#1e1e1e; color:#fff; }
+.btn-green { background:#071810; border-color:#16a34a; color:#4ade80; }
+.btn-green:hover { background:#0d2b18; }
+
+/* Upload-to-slot modal */
+#slotUploadModal { display:none; position:fixed; inset:0; z-index:310;
+  background:rgba(0,0,0,.75); align-items:center; justify-content:center; }
+#slotUploadModal.show { display:flex; }
+.subox { background:#111; border:1px solid #1e1e1e; border-radius:8px; padding:20px 24px; width:380px; max-width:95vw; }
+.subox h3 { font-size:.85rem; font-weight:700; color:#ddd; margin-bottom:4px; }
+.subox .sutarget { font-size:.72rem; color:#d97706; margin-bottom:14px; }
+#suDrop { border:2px dashed #222; border-radius:6px; padding:24px 12px; text-align:center; cursor:pointer; transition:all .15s; margin-bottom:10px; }
+#suDrop:hover, #suDrop.over { border-color:#d97706; background:#110900; }
+#suDrop p  { font-size:.75rem; color:#444; margin-bottom:4px; }
+#suDrop em { font-size:.65rem; color:#222; }
+#suPreview { display:none; align-items:center; gap:8px; margin-bottom:10px; padding:6px; background:#0c0c0c; border-radius:5px; }
+#suPreview img { width:56px; height:56px; object-fit:cover; border-radius:3px; }
+#suPreview .suname { font-size:.7rem; color:#aaa; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.subtn-row { display:flex; gap:8px; justify-content:flex-end; }
+
+#toast { position:fixed; bottom:14px; right:14px; padding:6px 12px; border-radius:5px;
+  font-size:.75rem; opacity:0; transition:opacity .2s; pointer-events:none; z-index:200;
+  background:#1a1a1a; border:1px solid #333; color:#ccc; }
+#toast.show { opacity:1; }
+#toast.ok  { border-color:#16a34a; background:#052e16; color:#4ade80; }
+#toast.err { border-color:#dc2626; background:#2e0000; color:#f87171; }
+#toast.inf { border-color:#d97706; background:#1a0e00; color:#fbbf24; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← Accueil</a>
+  <span class="h-title">🖼 Main <b>Pictures</b></span>
+  <a href="/rapid" style="font-size:.7rem">⚡ Express</a>
+  <input type="search" id="searchBox" placeholder="Filtrer ID / titre…" oninput="onSearch(this.value)">
+  <span id="fcount"></span>
+  <span id="progress">—</span>
+</header>
+
+<div class="frow">
+  <span class="flabel">Statut :</span>
+  <button class="chip stk" data-s="In stock"   onclick="toggleS(this)">In Stock</button>
+  <button class="chip trn" data-s="In transit" onclick="toggleS(this)">In Transit</button>
+  <button class="chip ret" data-s="Returned"   onclick="toggleS(this)">Returned</button>
+  <button class="chip dlv" data-s="Delivered"  onclick="toggleS(this)">Delivered</button>
+  <div class="fsep"></div>
+  <span class="flabel">Type :</span>
+  <button class="chip ctp" data-t="master"        onclick="toggleT(this)">Master</button>
+  <button class="chip ctp" data-t="second_market" onclick="toggleT(this)">Second Market</button>
+  <button class="chip ctp" data-t="contemporary"  onclick="toggleT(this)">Contemporary</button>
+  <div class="fsep"></div>
+  <span class="flabel">Revue :</span>
+  <button class="chip crv" data-rv="pending"   onclick="toggleRv(this)">⏳ À revoir</button>
+  <button class="chip crv" data-rv="validated" onclick="toggleRv(this)">✓ Validé</button>
+  <button class="chip crv" data-rv="skipped"   onclick="toggleRv(this)">⏭ Skip</button>
+  <div class="fsep"></div>
+  <span class="flabel">MAIN disque :</span>
+  <button class="chip" data-r="MAIN" onclick="cycleR(this)">MAIN</button>
+  <button class="chip" data-r="NONE" onclick="cycleR(this)">Pas sur disque</button>
+  <div class="fsep"></div>
+  <span class="flabel">État main :</span>
+  <button class="chip mhd" data-m="hd_miss" onclick="toggleM(this)" title="MAIN HD vide (parmi les œuvres déjà chargées)">HD vide</button>
+  <button class="chip mld" data-m="ld_miss" onclick="toggleM(this)" title="Main Low def vide (parmi les œuvres déjà chargées)">Low def vide</button>
+  <button class="chip mlg" data-m="legacy"  onclick="toggleM(this)" title="Photo dans un ancien champ main (parmi les œuvres déjà chargées)">Legacy</button>
+  <button class="freset" onclick="resetF()">✕ Reset</button>
+</div>
+
+<div id="hintBar">
+  <span>📌</span>
+  <span class="hb-file" id="hbFile"></span>
+  <span class="hb-text">→ clique sur MAIN HD ou Main Low def pour assigner</span>
+  <button class="hb-cancel" onclick="cancelPick()">✕ Annuler (Esc)</button>
+</div>
+
+<div id="feed"></div>
+<div id="toast"></div>
+
+<!-- Upload-to-slot modal -->
+<div id="slotUploadModal">
+  <div class="subox">
+    <h3>📤 Ajouter une photo</h3>
+    <div class="sutarget" id="suTarget"></div>
+    <div id="suDrop" onclick="document.getElementById('suInput').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')" ondrop="onSuDrop(event)">
+      <p>Glisse ou clique pour sélectionner</p><em>JPG · PNG · TIFF</em>
+    </div>
+    <input type="file" id="suInput" accept=".jpg,.jpeg,.png,.tif,.tiff" style="display:none" onchange="onSuPick(this.files[0])">
+    <div id="suPreview"><img id="suThumb"><span class="suname" id="suName"></span></div>
+    <div class="subtn-row">
+      <button class="btn" onclick="closeSuModal()">Annuler</button>
+      <button class="btn btn-green" id="btnSuSend" onclick="doSlotUpload()" style="display:none">⬆ Envoyer &amp; Assigner</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+let allAW = [], visAW = [];
+let sChips = new Set(), tChips = new Set(), rvChips = new Set(), mChips = new Set();
+let rChips = {};
+let sqSrch = '', sqSrchT;
+let openId = null, pickedFile = null;
+const detailCache = {};
+let loadQueue = [], activeLoads = 0;
+const MAX_PARALLEL = 3;
+let observer;
+
+const HD_FIELD = 'main_super_picture_hd';
+const LD_FIELD = 'main_lowdef';
+
+/* ── Init ── */
+async function init() {
+  const [r1, r2, r3] = await Promise.all([
+    fetch('/api/artwork_list'), fetch('/api/role_index'), fetch('/api/artworks_meta'),
+  ]);
+  const ids = await r1.json(), ridx = await r2.json(), meta = await r3.json();
+  allAW = ids.map(id => {
+    const m = meta[id] || {}, x = ridx[id] || {};
+    return { id_name: id, title: m.title||'', artist: m.artist||'', status: m.status||'',
+             type: m.type||'', review_status: m.review_status||'pending',
+             roles: x.roles||[], dirs: x.dirs||[] };
+  });
+  applyF();
+}
+
+/* ── Filters ── */
+function toggleS(b){ const s=b.dataset.s; sChips.has(s)?(sChips.delete(s),b.classList.remove('s-on')):(sChips.add(s),b.classList.add('s-on')); applyF(); }
+function toggleT(b){ const t=b.dataset.t; tChips.has(t)?(tChips.delete(t),b.classList.remove('t-on')):(tChips.add(t),b.classList.add('t-on')); applyF(); }
+function toggleRv(b){ const v=b.dataset.rv; rvChips.has(v)?(rvChips.delete(v),b.classList.remove('rv-on')):(rvChips.add(v),b.classList.add('rv-on')); applyF(); }
+function toggleM(b){ const m=b.dataset.m; mChips.has(m)?(mChips.delete(m),b.classList.remove('m-on')):(mChips.add(m),b.classList.add('m-on')); applyF(); }
+function cycleR(b){ const r=b.dataset.r,c=rChips[r]||0,n=c>=1?-1:c+1; rChips[r]=n;
+  b.className='chip'+(n===1?' r-has':n===-1?' r-mis':''); b.textContent=(n===1?'✓ ':n===-1?'✗ ':'')+r; applyF(); }
+function resetF(){
+  sChips.clear(); tChips.clear(); rvChips.clear(); mChips.clear();
+  document.querySelectorAll('.chip[data-s]').forEach(b=>b.classList.remove('s-on'));
+  document.querySelectorAll('.chip[data-t]').forEach(b=>b.classList.remove('t-on'));
+  document.querySelectorAll('.chip[data-rv]').forEach(b=>b.classList.remove('rv-on'));
+  document.querySelectorAll('.chip[data-m]').forEach(b=>b.classList.remove('m-on'));
+  document.querySelectorAll('.chip[data-r]').forEach(b=>{ rChips[b.dataset.r]=0; b.className='chip'; b.textContent=b.dataset.r; });
+  sqSrch=''; document.getElementById('searchBox').value=''; applyF();
+}
+
+/* Main-state of a loaded artwork: {hd, ld, legacy} booleans, or null if not loaded */
+function mainState(id){
+  const d = detailCache[id];
+  if (!d) return null;
+  const p = d.photos || {};
+  return {
+    hd: ((p[HD_FIELD]||'').trim().length > 4),
+    ld: ((p[LD_FIELD]||'').trim().length > 4),
+    legacy: (d.legacy||[]).length > 0,
+  };
+}
+
+function applyF(){
+  const rl = Object.entries(rChips).filter(([,v])=>v!==0);
+  visAW = allAW.filter(a=>{
+    if (sChips.size && !sChips.has(a.status)) return false;
+    if (tChips.size && !tChips.has(a.type)) return false;
+    if (rvChips.size && !rvChips.has(a.review_status)) return false;
+    for (const [r,s] of rl){
+      if (r==='NONE'){ if (s===1 && a.dirs.length>0) return false; if (s===-1 && a.dirs.length===0) return false; }
+      else { if (s===1 && !a.roles.includes(r)) return false; if (s===-1 && a.roles.includes(r)) return false; }
+    }
+    if (mChips.size){
+      const st = mainState(a.id_name);
+      if (!st) return false;  // main-state filters only apply to loaded artworks
+      if (mChips.has('hd_miss') && st.hd) return false;
+      if (mChips.has('ld_miss') && st.ld) return false;
+      if (mChips.has('legacy')  && !st.legacy) return false;
+    }
+    if (sqSrch) return a.id_name.toLowerCase().includes(sqSrch) || a.title.toLowerCase().includes(sqSrch) || a.artist.toLowerCase().includes(sqSrch);
+    return true;
+  });
+  const hasF = sChips.size||tChips.size||rvChips.size||mChips.size||rl.length||sqSrch;
+  document.getElementById('fcount').textContent = hasF ? visAW.length+' résultats' : '';
+  document.getElementById('progress').textContent = visAW.length+' œuvres';
+  renderFeed();
+}
+function onSearch(v){ clearTimeout(sqSrchT); sqSrchT=setTimeout(()=>{ sqSrch=v.trim().toLowerCase(); applyF(); },180); }
+
+function staCls(s){ if(!s)return'sta-oth'; s=s.toLowerCase();
+  if(s.includes('stock'))return'sta-stk'; if(s.includes('transit'))return'sta-trn';
+  if(s.includes('return'))return'sta-ret'; if(s.includes('deliver'))return'sta-dlv'; return'sta-oth'; }
+
+/* ── Feed ── */
+function renderFeed(){
+  openId=null; cancelPick(); loadQueue=[];
+  if (observer) observer.disconnect();
+  const feed = document.getElementById('feed');
+  if (!visAW.length){ feed.innerHTML='<div style="padding:40px;color:#252525;text-align:center">Aucune œuvre</div>'; return; }
+  feed.innerHTML = visAW.map(a=>{
+    const dirPills = a.dirs.map(d=>`<span class="dpill ${d==='300'?'d300':d}">${d}</span>`).join('');
+    const hasMain = a.roles.includes('MAIN') || a.roles.includes('MAIN A5') || a.roles.includes('RECTO');
+    const warn = a.dirs.length ? '' : '<span class="i-warn">⚠ pas sur disque</span>';
+    const cached = detailCache[a.id_name];
+    const detHTML = cached ? buildDetailHTML(a.id_name, cached) : '<div class="loading-detail">⏳</div>';
+    const openCls = cached ? ' open' : '';
+    const badges = cached ? stateBadgesHTML(a.id_name) : '';
+    return `<div class="item${openCls}" id="item-${a.id_name}" data-id="${a.id_name}">
+      <div class="ihead" onclick="toggleItem('${a.id_name}')">
+        <span class="i-id">${a.id_name}</span>
+        <span class="i-tit">${a.title||a.artist||''}</span>
+        <span class="i-sta ${staCls(a.status)}">${a.status||'—'}</span>
+        <div class="i-pills">${dirPills}</div>
+        <div class="st-badges" id="stb-${a.id_name}">${badges}</div>
+        ${warn}
+        <span class="i-chev">▶</span>
+      </div>
+      <div class="idetail" id="det-${a.id_name}">${detHTML}</div>
+    </div>`;
+  }).join('');
+  observer = new IntersectionObserver(onVisible,{rootMargin:'300px',threshold:0});
+  document.querySelectorAll('.item:not(.open)').forEach(el=>observer.observe(el));
+}
+
+function stateBadgesHTML(id){
+  const st = mainState(id);
+  if (!st) return '';
+  const hd = st.hd ? '<span class="stb ok">HD ✓</span>' : '<span class="stb miss">HD ✗</span>';
+  const ld = st.ld ? '<span class="stb ok">LD ✓</span>' : '<span class="stb miss">LD ✗</span>';
+  const lg = st.legacy ? '<span class="stb lg">legacy</span>' : '';
+  return hd+ld+lg;
+}
+function refreshBadges(id){ const el=document.getElementById(`stb-${id}`); if(el) el.innerHTML=stateBadgesHTML(id); }
+
+function toggleItem(id){
+  const item = document.getElementById(`item-${id}`);
+  if (!item) return;
+  if (detailCache[id]) { item.classList.toggle('open'); return; }
+  if (!loadQueue.includes(id)) loadQueue.push(id);
+  drainQueue();
+}
+
+/* ── Lazy load ── */
+function onVisible(entries){
+  for (const e of entries){
+    if (!e.isIntersecting) continue;
+    const id = e.target.dataset.id;
+    if (detailCache[id]){ observer.unobserve(e.target); continue; }
+    if (!loadQueue.includes(id)) loadQueue.push(id);
+    observer.unobserve(e.target);
+  }
+  drainQueue();
+}
+function drainQueue(){
+  while (activeLoads < MAX_PARALLEL && loadQueue.length){
+    const id = loadQueue.shift();
+    if (detailCache[id]){ drainQueue(); continue; }
+    activeLoads++;
+    fetch(`/api/mainpics/${id}`).then(r=>r.json()).then(d=>{
+      detailCache[id] = d;
+      const det=document.getElementById(`det-${id}`), item=document.getElementById(`item-${id}`);
+      if (det && item){ det.innerHTML=buildDetailHTML(id,d); item.classList.add('open'); refreshBadges(id); }
+      if (mChips.size) applyF();  // newly loaded state may change a main-state filter
+    }).catch(()=>{}).finally(()=>{ activeLoads--; drainQueue(); });
+  }
+}
+
+const isTif = u => /\.tiff?$/i.test(u||'');
+
+/* ── Detail HTML ── */
+function buildDetailHTML(id, d){
+  const disk = d.disk || [], photos = d.photos || {}, fields = d.fields || [];
+  const legacy = d.legacy || [], ferr = d.field_error || {};
+
+  const diskH = !disk.length
+    ? '<div style="color:#252525;font-size:.68rem">Aucun fichier disque</div>'
+    : disk.map((f,i)=>{
+        const tifBadge = isTif(f.filename)?'<span class="tif-hint">TIFF</span>':'';
+        const bestBadge = f.best?'<span class="best-pill">★ BEST</span>':'';
+        const pxBadge = f.width?`<span class="px-pill">${f.width}×${f.height}</span>`:'';
+        return `<div class="dcard${f.best?' is-best':''}${f.is_main?'':' dimmed'}" data-fi="${i}"
+             onclick="pickFile('${id}',${i})">
+          <img src="${f.thumb}" loading="lazy">
+          <div class="dinfo"><div class="dname">${f.filename}</div>
+            <div class="dmeta"><span class="dbadge ${f.dir}">${f.dir}</span>
+              <span class="rbadge ${f.role.replace(/ /g,'-')}">${f.role}</span>
+              ${bestBadge}${pxBadge}${tifBadge}</div></div>
+          <a class="dedit" href="/edit/${f.dir}/${encodeURIComponent(f.filename)}" target="_blank" onclick="event.stopPropagation()">✏</a>
+        </div>`;
+      }).join('');
+
+  // Legacy banner
+  let legacyH = '';
+  if (legacy.length){
+    legacyH = `<div class="legacy-box"><div class="legacy-title">⚠ Photo encore dans un ancien champ main — migre-la puis vide</div>`
+      + legacy.map(l=>{
+          const fn = (l.url||'').split('/').pop().split('?')[0];
+          const img = isTif(l.url) ? '<div class="lthumb" style="display:flex;align-items:center;justify-content:center;color:#b45309;font-size:.5rem">TIFF</div>'
+                                   : `<img class="lthumb" src="${l.url}" loading="lazy" onerror="this.style.visibility='hidden'">`;
+          return `<div class="lrow">${img}
+            <div class="linfo"><div class="llabel">${l.label} <span style="font-family:monospace;color:#3a3a3a">${l.field}</span></div>
+              <div class="lfname">${fn}</div></div>
+            <button class="lbtn" onclick="migrateLegacy('${id}','${l.field}','${HD_FIELD}')">→ HD</button>
+            <button class="lbtn" onclick="migrateLegacy('${id}','${l.field}','${LD_FIELD}')">→ Low def</button>
+            <button class="lbtn clr" onclick="clearField('${id}','${l.field}','${l.label}')">✕ Vider</button>
+          </div>`;
+        }).join('') + '</div>';
+  }
+
+  // Field errors (e.g. main_lowdef n'existe pas côté Odoo)
+  let ferrH = '';
+  const errFields = Object.keys(ferr);
+  if (errFields.length){
+    ferrH = `<div class="field-err">⚠ Champ(s) illisible(s) côté Odoo : ${errFields.map(f=>`<b>${f}</b>`).join(', ')} — vérifie que le champ existe.</div>`;
+  }
+
+  const slotsH = fields.map(([field,label])=>{
+    const url = photos[field]||'', full = url.trim().length>4;
+    const fname = full ? url.split('/').pop().split('?')[0] : '';
+    const badge = full && isTif(url) ? '<span class="url-badge tiff">TIFF</span>' : '';
+    const thumb = full ? `<img class="mthumb" src="${url}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
+    return `<div class="mslot ${full?'filled':'empty'}" id="sl-${id}-${field}" data-field="${field}"
+         onclick="assignTo('${id}','${field}','${label}')">
+      ${thumb}<div class="mempty" ${full?'style="display:none"':''}>∅</div>
+      <div class="minfo">
+        <div class="mlabel">${label} <span class="fname-code">${field}</span> ${badge}</div>
+        <div class="mfname" id="fn-${id}-${field}">${fname||'— vide —'}</div>
+        <div class="mhint">← assigner la photo sélectionnée ici</div>
+        <div class="mactions-slot">
+          <button class="sbtn up" onclick="openSuModal('${id}','${field}','${label}');event.stopPropagation()">📤 Upload</button>
+          ${full?`<button class="sbtn clr" onclick="clearField('${id}','${field}','${label}');event.stopPropagation()">✕ Vider</button>`:''}
+        </div>
+      </div></div>`;
+  }).join('');
+
+  setTimeout(()=>checkSlotUrls(id,d),120);
+
+  const sub = [d.artist, d.odoo_id?`Odoo #${d.odoo_id}`:'Pas dans Odoo'].filter(Boolean).join(' · ');
+  const rs = d.review_status||'pending';
+  const rsBadge = rs==='validated'?'<span style="font-size:.62rem;background:#052e16;border:1px solid #166534;color:#4ade80;padding:1px 6px;border-radius:3px">✓ Validé</span>'
+    : rs==='skipped'?'<span style="font-size:.62rem;background:#2a210e;border:1px solid #92400e;color:#fbbf24;padding:1px 6px;border-radius:3px">⏭ Skip</span>':'';
+  return `<div class="dactions">
+      <span style="font-size:.65rem;color:#333;flex:1">${sub} ${rsBadge}</span>
+      <button class="btn btn-green" onclick="doValidate('${id}',this)" title="Marquer revue (V)">✓ Valider</button>
+      <button class="btn" onclick="doSkip('${id}',this)" title="À revoir plus tard (S)">⏭ Skip</button>
+      <button class="btn" onclick="window.open('/artwork/${id}','_blank')">🔗 Fiche</button>
+    </div>
+    <div><div class="ptitle">📁 Candidats disque (${disk.length})</div>${diskH}</div>
+    <div><div class="ptitle">🖼 Champs main</div>${ferrH}${legacyH}${slotsH}</div>`;
+}
+
+/* ── Pick a disk file ── */
+function pickFile(id, fi){
+  const d = detailCache[id], f = d && d.disk[fi];
+  if (!f) return;
+  if (pickedFile && pickedFile.filename===f.filename && pickedFile.dir===f.dir){ cancelPick(); return; }
+  cancelPick();
+  openId=id; pickedFile=f;
+  const item=document.getElementById(`item-${id}`);
+  if (item){
+    item.querySelectorAll('.dcard').forEach((c)=>c.classList.toggle('picked', c.dataset.fi==fi));
+    item.querySelectorAll('.mslot').forEach(s=>s.classList.add('pick-match'));  // both main slots are valid
+  }
+  document.getElementById('hbFile').textContent=`[${f.dir}] ${f.filename}`;
+  document.getElementById('hintBar').classList.add('show');
+  document.body.classList.add('picking');
+}
+function cancelPick(){
+  pickedFile=null;
+  document.querySelectorAll('.dcard').forEach(c=>c.classList.remove('picked'));
+  document.querySelectorAll('.mslot').forEach(s=>s.classList.remove('pick-match'));
+  document.getElementById('hintBar').classList.remove('show');
+  document.body.classList.remove('picking');
+}
+
+/* ── Assign / clear ── */
+function paintSlot(id, field, url, fname){
+  const slot = document.getElementById(`sl-${id}-${field}`);
+  if (!slot) return;
+  if (url){
+    slot.classList.remove('empty'); slot.classList.add('filled');
+    let img = slot.querySelector('.mthumb');
+    if (!img){ img=document.createElement('img'); img.className='mthumb';
+      const em=slot.querySelector('.mempty'); if(em){ em.style.display='none'; em.before(img); } else slot.prepend(img); }
+    img.src = url + (url.includes('?')?'&':'?') + 't='+Date.now(); img.style.display='';
+  } else {
+    slot.classList.add('empty'); slot.classList.remove('filled');
+    const img=slot.querySelector('.mthumb'); if(img) img.style.display='none';
+    const em=slot.querySelector('.mempty'); if(em) em.style.display='flex';
+  }
+  const fn=document.getElementById(`fn-${id}-${field}`); if(fn) fn.textContent = fname||'— vide —';
+}
+
+async function assignTo(id, field, label){
+  if (!pickedFile){ openSuModal(id, field, label); return; }
+  const d = detailCache[id];
+  if (!d || !d.odoo_id) return toast("Pas d'ID Odoo", 'err');
+  const url = window.location.origin + pickedFile.url;
+  const f = pickedFile; cancelPick();
+  toast(`Assignation ${label}…`, 'inf');
+  try {
+    const r = await fetch('/api/assign',{method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ odoo_id:d.odoo_id, field, url, id_name:id })});
+    const res = await r.json();
+    if (!res.ok){ toast('Erreur : '+(res.error||'?'), 'err'); return; }
+    const finalUrl = res.url || url;
+    if (d) d.photos[field] = finalUrl;
+    // finalUrl may be absolute (staging dirs rewrite to a public URL) or relative
+    const displayUrl = /^https?:/i.test(finalUrl) ? finalUrl : window.location.origin + finalUrl;
+    paintSlot(id, field, displayUrl, finalUrl.split('/').pop().split('?')[0]);
+    refreshBadges(id);
+    toast(`✓ ${label} ← ${f.filename}`, 'ok');
+  } catch(e){ toast('Erreur réseau', 'err'); }
+}
+
+async function clearField(id, field, label){
+  const d = detailCache[id];
+  if (!d || !d.odoo_id || !confirm(`Vider « ${label} » ?`)) return;
+  try {
+    const r = await fetch('/api/assign',{method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ odoo_id:d.odoo_id, field, url:'', id_name:id })});
+    const res = await r.json();
+    if (!res.ok){ toast('Erreur : '+(res.error||'?'), 'err'); return; }
+    if (d){ d.photos[field]=''; d.legacy=(d.legacy||[]).filter(l=>l.field!==field); }
+    // Canonical field → repaint slot ; legacy field → re-render detail to drop the row
+    if (field===HD_FIELD || field===LD_FIELD) paintSlot(id, field, '', '');
+    else { const det=document.getElementById(`det-${id}`); if(det) det.innerHTML=buildDetailHTML(id,d); }
+    refreshBadges(id);
+    toast(`✓ « ${label} » vidé`, 'ok');
+  } catch(e){ toast('Erreur réseau', 'err'); }
+}
+
+/* Migrate a legacy field's image into a canonical field (HD or Low def) */
+async function migrateLegacy(id, legacyField, targetField){
+  const d = detailCache[id];
+  if (!d || !d.odoo_id) return toast("Pas d'ID Odoo", 'err');
+  const l = (d.legacy||[]).find(x=>x.field===legacyField);
+  if (!l || !l.url) return;
+  const tgtLabel = targetField===HD_FIELD ? 'MAIN HD' : 'Main Low def';
+  toast(`Migration → ${tgtLabel}…`, 'inf');
+  try {
+    const r = await fetch('/api/assign',{method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ odoo_id:d.odoo_id, field:targetField, url:l.url, id_name:id })});
+    const res = await r.json();
+    if (!res.ok){ toast('Erreur : '+(res.error||'?'), 'err'); return; }
+    const finalUrl = res.url || l.url;
+    if (d) d.photos[targetField] = finalUrl;
+    paintSlot(id, targetField, finalUrl, finalUrl.split('/').pop().split('?')[0]);
+    refreshBadges(id);
+    toast(`✓ ${l.label} → ${tgtLabel}`, 'ok');
+  } catch(e){ toast('Erreur réseau', 'err'); }
+}
+
+/* ── URL 404 check for main slots ── */
+async function checkSlotUrls(id, d){
+  for (const [field] of (d.fields||[])){
+    const url = (d.photos||{})[field]||'';
+    if (url.length<5 || isTif(url)) continue;
+    const slot = document.getElementById(`sl-${id}-${field}`);
+    if (!slot) continue;
+    try {
+      const r = await fetch(url,{method:'HEAD',signal:AbortSignal.timeout(5000)});
+      if (!r.ok){
+        const lbl = slot.querySelector('.mlabel');
+        if (lbl && !lbl.querySelector('.url-badge.f404')) lbl.insertAdjacentHTML('beforeend',' <span class="url-badge f404">404</span>');
+      }
+    } catch {}
+  }
+}
+
+/* ── Validate / Skip ── */
+async function doValidate(id, btn){
+  if (btn){ btn.disabled=true; btn.textContent='⏳…'; }
+  try {
+    const res = await (await fetch(`/api/review/validate/${id}`,{method:'POST'})).json();
+    if (res.ok){ toast('✓ Validé','ok'); if(detailCache[id]) detailCache[id].review_status='validated';
+      const aw=allAW.find(a=>a.id_name===id); if(aw) aw.review_status='validated'; advanceToNext(id); }
+    else toast('Erreur : '+(res.error||'?'),'err');
+  } catch(e){ toast('Erreur réseau','err'); }
+  if (btn){ btn.disabled=false; btn.textContent='✓ Valider'; }
+}
+async function doSkip(id, btn){
+  if (btn){ btn.disabled=true; btn.textContent='⏳…'; }
+  try {
+    const res = await (await fetch(`/api/review/skip/${id}`,{method:'POST'})).json();
+    if (res.ok){ toast('⏭ Skippé','inf'); if(detailCache[id]) detailCache[id].review_status='skipped';
+      const aw=allAW.find(a=>a.id_name===id); if(aw) aw.review_status='skipped'; advanceToNext(id); }
+    else toast('Erreur : '+(res.error||'?'),'err');
+  } catch(e){ toast('Erreur réseau','err'); }
+  if (btn){ btn.disabled=false; btn.textContent='⏭ Skip'; }
+}
+function advanceToNext(id){
+  const item=document.getElementById(`item-${id}`);
+  if (!item) return;
+  item.classList.add('reviewed');
+  const next=item.nextElementSibling;
+  if (next){ next.scrollIntoView({behavior:'smooth',block:'center'}); const nid=next.dataset.id; if(nid) toggleItem(nid); }
+}
+
+/* ── Keyboard ── */
+document.addEventListener('keydown',e=>{
+  if (e.target.tagName==='INPUT') return;
+  if (e.key==='Escape') cancelPick();
+  if ((e.key==='v'||e.key==='V') && openId) doValidate(openId);
+  if ((e.key==='s'||e.key==='S') && openId) doSkip(openId);
+});
+
+/* ── Toast ── */
+let tt;
+function toast(msg,type='ok'){ const el=document.getElementById('toast');
+  el.textContent=msg; el.className='show '+type; clearTimeout(tt); tt=setTimeout(()=>el.className='',3000); }
+
+/* ── Upload-to-slot ── */
+let suState = { id:null, field:null, label:null, file:null };
+function openSuModal(id, field, label){
+  suState={ id, field, label, file:null };
+  document.getElementById('suTarget').textContent=`→ ${label} (${field})`;
+  document.getElementById('suPreview').style.display='none';
+  document.getElementById('suDrop').style.display='block';
+  document.getElementById('suInput').value='';
+  document.getElementById('btnSuSend').style.display='none';
+  document.getElementById('slotUploadModal').classList.add('show');
+}
+function closeSuModal(){ document.getElementById('slotUploadModal').classList.remove('show'); }
+function onSuDrop(e){ e.preventDefault(); document.getElementById('suDrop').classList.remove('over'); onSuPick(e.dataTransfer.files[0]); }
+function onSuPick(f){ if(!f) return; suState.file=f;
+  const rd=new FileReader(); rd.onload=ev=>document.getElementById('suThumb').src=ev.target.result; rd.readAsDataURL(f);
+  document.getElementById('suName').textContent=f.name;
+  document.getElementById('suPreview').style.display='flex';
+  document.getElementById('suDrop').style.display='none';
+  document.getElementById('btnSuSend').style.display=''; }
+async function doSlotUpload(){
+  if (!suState.file) return;
+  const btn=document.getElementById('btnSuSend'); btn.textContent='⏳…'; btn.disabled=true;
+  const fd=new FormData(); fd.append('id_name',suState.id); fd.append('field',suState.field); fd.append('file',suState.file);
+  try {
+    const d = await (await fetch('/api/upload_to_field',{method:'POST',body:fd})).json();
+    if (!d.ok){ toast('Erreur : '+(d.error||'?'),'err'); return; }
+    toast(d.warning?`✓ ${d.filename} (${d.warning})`:`✓ ${d.filename} → Odoo`, d.warning?'inf':'ok');
+    closeSuModal();
+    const url = window.location.origin + d.url;
+    paintSlot(suState.id, suState.field, url, d.filename);
+    const cached=detailCache[suState.id]; if(cached) cached.photos[suState.field]=url;
+    refreshBadges(suState.id);
+    const aw=allAW.find(a=>a.id_name===suState.id); if(aw && !aw.dirs.includes('FM')) aw.dirs.push('FM');
+  } catch(e){ toast('Erreur réseau','err'); }
+  finally { btn.textContent='⬆ Envoyer & Assigner'; btn.disabled=false; }
+}
+document.getElementById('slotUploadModal').addEventListener('click',e=>{ if(e.target.id==='slotUploadModal') closeSuModal(); });
+
+init();
+</script>
+</body>
+</html>

@@ -92,6 +92,29 @@ ODOO_FIELDS = [
 
 FM_ONLY_FIELDS = set()
 
+# ── Main-picture review (écran /mainpics) ──────────────────────────────────────
+# On rationalise les 5 anciens champs "main" en 2 canoniques :
+#   MAIN HD       → main_super_picture_hd
+#   Main Low def  → main_lowdef
+# Les autres champs main deviennent "legacy" : on les affiche pour repérer les
+# œuvres où une photo dort encore dans un ancien champ, et proposer migration/vidage.
+MAINPICS_HD_FIELD     = 'main_super_picture_hd'
+MAINPICS_LOWDEF_FIELD = 'main_lowdef'
+MAINPICS_FIELDS = [
+    (MAINPICS_HD_FIELD,     'MAIN HD'),
+    (MAINPICS_LOWDEF_FIELD, 'Main Low def'),
+]
+MAINPICS_LEGACY_FIELDS = [
+    ('main_picture_hd',     'Main HD (legacy)'),
+    ('main_web_picture',    'Web (legacy)'),
+    ('main_a6_picture',     'A6 (legacy)'),
+    ('main_hd_web_picture', 'HD Web (legacy)'),
+]
+# Tous les champs main que l'écran peut lire/écrire (canoniques + legacy).
+MAINPICS_ALL_FIELDS = [f for f, _ in MAINPICS_FIELDS] + [f for f, _ in MAINPICS_LEGACY_FIELDS]
+# Rôles disque considérés comme candidats "photo principale".
+MAINPICS_ROLES = {'MAIN', 'MAIN A5', 'RECTO'}
+
 # ── Role inference ────────────────────────────────────────────────────────────
 ROLE_PATTERNS = [
     (r'_MAIN_A5',    'MAIN A5'),
@@ -627,8 +650,8 @@ def assign_photo():
     id_name  = data.get('id_name', '')
     if not odoo_id or not field:
         return jsonify({'error': 'missing params'}), 400
-    # Validate field name
-    valid_fields = [f for f, _ in ODOO_FIELDS]
+    # Validate field name (ODOO_FIELDS + champs de l'écran /mainpics)
+    valid_fields = [f for f, _ in ODOO_FIELDS] + MAINPICS_ALL_FIELDS
     if field not in valid_fields:
         return jsonify({'error': 'invalid field'}), 400
     try:
@@ -801,6 +824,73 @@ def api_artwork_list():
     rows = db.execute("SELECT id_name FROM artworks ORDER BY id_name").fetchall()
     db.close()
     return jsonify([r['id_name'] for r in rows])
+
+
+# ── Écran /mainpics : revue des 2 champs main (HD + Low def) ───────────────────
+@app.route('/mainpics')
+@login_required
+def mainpics_page():
+    return render_template('mainpics.html')
+
+@app.route('/api/mainpics/<id_name>')
+@login_required
+def api_mainpics(id_name):
+    """Détail focalisé main-picture : les 2 champs canoniques, les champs legacy
+    encore remplis, et les candidats photo principale sur disque."""
+    id_name = id_name.upper()
+    db  = get_db()
+    row = db.execute("SELECT * FROM artworks WHERE id_name=?", (id_name,)).fetchone()
+    db.close()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+
+    # Lecture Odoo des champs main (bulk, puis fallback par champ si un champ
+    # n'existe pas — ex : main_lowdef pas encore créé côté Odoo).
+    photos      = {f: '' for f in MAINPICS_ALL_FIELDS}
+    field_error = {}   # field → message si lecture impossible
+    if row['odoo_id']:
+        oid = int(row['odoo_id'])
+        try:
+            res = odoo_call('product.template', 'read', [[oid], MAINPICS_ALL_FIELDS])
+            if res:
+                for f in MAINPICS_ALL_FIELDS:
+                    photos[f] = res[0].get(f) or ''
+        except Exception as e:
+            print(f'[mainpics] bulk read {id_name} failed ({e}) — per-field', flush=True)
+            for f in MAINPICS_ALL_FIELDS:
+                try:
+                    r = odoo_call('product.template', 'read', [[oid], [f]])
+                    if r:
+                        photos[f] = r[0].get(f) or ''
+                except Exception as fe:
+                    field_error[f] = str(fe)
+
+    # Candidats disque : on garde tout mais on met les rôles MAIN en tête.
+    disk = scan_artwork_files(id_name)
+    for f in disk:
+        f['is_main'] = f['role'] in MAINPICS_ROLES
+    disk.sort(key=lambda f: (0 if f['is_main'] else 1))
+
+    # Legacy encore rempli = signal "à migrer/vider"
+    legacy = [
+        {'field': f, 'label': lbl, 'url': photos.get(f, '')}
+        for f, lbl in MAINPICS_LEGACY_FIELDS
+        if (photos.get(f, '') or '').strip()
+    ]
+
+    return jsonify({
+        'id_name':       id_name,
+        'title':         row['title'] or '',
+        'artist':        row['artist'] or '',
+        'status':        row['status'] or '',
+        'odoo_id':       row['odoo_id'],
+        'review_status': row['review_status'] if 'review_status' in row.keys() else 'pending',
+        'fields':        [[f, lbl] for f, lbl in MAINPICS_FIELDS],
+        'photos':        photos,
+        'legacy':        legacy,
+        'field_error':   field_error,
+        'disk':          disk,
+    })
 
 
 # Role → preferred Odoo field (used by /api/best_picks for v2 dashboard)
@@ -1274,6 +1364,7 @@ def process_image():
 # Suffix to append to id_name for each Odoo field
 FIELD_SUFFIX = {
     'main_super_picture_hd': '_MAIN',
+    'main_lowdef':           '_MAIN_LOWDEF',
     'main_picture_hd':       '_MAIN',
     'main_web_picture':      '_MAIN',
     'main_a6_picture':       '_MAIN_A5',
@@ -1302,7 +1393,7 @@ def upload_to_field():
     if not id_name or not field or not f:
         return jsonify({'ok': False, 'error': 'Paramètres manquants'}), 400
 
-    valid_fields = [fn for fn, _ in ODOO_FIELDS]
+    valid_fields = [fn for fn, _ in ODOO_FIELDS] + MAINPICS_ALL_FIELDS
     if field not in valid_fields:
         return jsonify({'ok': False, 'error': 'Champ invalide'}), 400
 
